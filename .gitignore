@@ -1,0 +1,20 @@
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+
+# Dependencias y compilados
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+
+# Logs y entorno
+*.log
+.env
