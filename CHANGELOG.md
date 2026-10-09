@@ -6,6 +6,21 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.2] - 2026-10-09
+
+### Añadido
+- **Pestañas** en la barra superior: **Canciones**, **Artistas** y **Géneros**, cada una con su botón.
+- **Clasificación con la API de Deezer** (gratuita, sin clave): se busca cada canción, se toma el género de su álbum y se descarga la foto de cada artista y de cada género (`MusicCatalog`). Si un álbum tiene varios géneros, se elige el más concreto en lugar de «Pop».
+- **Artistas**: tarjetas con la foto redonda de cada artista y su número de canciones.
+- **Géneros**: tarjetas con la imagen de cada género, ordenadas por número de canciones. Los subgéneros sin imagen en Deezer («Pop latino», «Flamenco») usan la foto del artista con más canciones de ese género.
+- Al pulsar un artista o un género se ven sus canciones; al pulsar una, suena. La que está sonando aparece resaltada.
+- En Artistas y Géneros el reproductor (barra, tiempos y botones) pasa a una barra inferior con el título y el artista.
+- Indicador «Clasificando con Deezer… N/M» en la barra superior y aviso si no hay conexión. Las canciones pendientes se reintentan al añadir más.
+- Caché en disco (`%LOCALAPPDATA%\Launcherito\catalogo.json`): cada canción, álbum, género y artista se consulta una sola vez. Se escribe primero en un archivo temporal para no dejarla a medias.
+
+### Cambiado
+- Al cargar muchas canciones, entran en tandas de 10 con animación: cada tanda empieza cuando la anterior ha terminado de colocarse, y ninguna aparece de golpe.
+
 ## [1.1.3] - 2026-10-09
 
 ### Cambiado

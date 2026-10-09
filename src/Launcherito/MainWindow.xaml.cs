@@ -28,6 +28,18 @@ public partial class MainWindow : Window
     private bool _mosaicView;
     private readonly TileAnimator _animator;
 
+    private enum Section { Songs, Artists, Genres }
+    private Section _section = Section.Songs;
+    private readonly MusicCatalog _catalog = new();
+    private readonly Dictionary<string, SongMeta> _meta = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Queue<string> _pending = new();             // canciones por clasificar con Deezer
+    private bool _classifying;
+    private readonly Dictionary<string, CategoryCard> _artistCards = new(StringComparer.CurrentCultureIgnoreCase);
+    private readonly Dictionary<string, CategoryCard> _genreCards = new(StringComparer.CurrentCultureIgnoreCase);
+    private string? _openCategory;                                // artista o género abierto, o null en la lista
+    private readonly DispatcherTimer _categoryRefresh = new() { Interval = TimeSpan.FromMilliseconds(700) };
+    private const string Unclassified = "Sin clasificar";
+
     public MainWindow()
     {
         InitializeComponent();
@@ -44,6 +56,11 @@ public partial class MainWindow : Window
         SeekSlider.AddHandler(PreviewMouseLeftButtonDownEvent,
             new MouseButtonEventHandler(SeekSlider_PreviewMouseLeftButtonDown), handledEventsToo: true);
         UpdateShuffleButton();
+        _categoryRefresh.Tick += (_, _) =>
+        {
+            _categoryRefresh.Stop();
+            RefreshCategories();
+        };
         SetMosaicView(false);
 
         // Permite abrir canciones pasadas como argumento (p. ej. "Abrir con → Launcherito").
@@ -87,6 +104,7 @@ public partial class MainWindow : Window
         bool wasEmpty = before == 0;
         _playlist.Add(valid);
         SyncMosaic();
+        _ = ClassifyAsync(valid);
 
         // Al pasar de una canción a varias se cambia sola a la vista mosaico.
         if (before <= 1 && _playlist.Count > 1 && !_mosaicView)
@@ -112,6 +130,8 @@ public partial class MainWindow : Window
         TotalTimeText.Text = "0:00";
 
         _player.Open(new Uri(path));
+        if (_openCategory is not null)
+            ScheduleCategoryRefresh();   // para resaltar la canción que suena en el detalle
         LoadButton.Visibility = Visibility.Collapsed;
         PlayerPanel.Visibility = Visibility.Visible;
         Play();
@@ -154,8 +174,236 @@ public partial class MainWindow : Window
         var info = SongInfo.Read(path, CoverDecodeSize);
         TitleText.Text = info.Title;
         ArtistText.Text = info.Artist;
+        BarTitleText.Text = info.Title;
+        BarArtistText.Text = info.Artist;
         CoverBrush.ImageSource = info.Cover;
         CoverPlaceholder.Visibility = info.Cover is null ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // ─────────────────────── Pestañas: artistas y géneros ───────────────────────
+
+    private sealed class SongMeta
+    {
+        public required string Title { get; init; }
+        public required string Artist { get; init; }
+        public GenreInfo? Genre { get; set; }
+        public bool Classified { get; set; }
+        public string GenreName => Genre?.Name ?? Unclassified;
+    }
+
+    private void SongsTab_Click(object sender, RoutedEventArgs e) => SetSection(Section.Songs);
+    private void ArtistsTab_Click(object sender, RoutedEventArgs e) => SetSection(Section.Artists);
+    private void GenresTab_Click(object sender, RoutedEventArgs e) => SetSection(Section.Genres);
+
+    private void SetSection(Section section)
+    {
+        _section = section;
+        _openCategory = null;
+        ApplyView();
+        RefreshCategories();
+        CategoryScroll.ScrollToTop();
+    }
+
+    /// <summary>Lee título y artista de las canciones nuevas y las clasifica por género con Deezer.</summary>
+    private async Task ClassifyAsync(IReadOnlyList<string> paths)
+    {
+        var fresh = paths.Distinct(StringComparer.OrdinalIgnoreCase).Where(p => !_meta.ContainsKey(p)).ToList();
+        if (fresh.Count == 0)
+            return;
+
+        // Solo etiquetas, sin carátula (maxCoverSize 0), y fuera del hilo de la interfaz.
+        var tags = await Task.Run(() => fresh.Select(path => (path, info: SongInfo.Read(path, 0))).ToList());
+        foreach (var (path, info) in tags)
+        {
+            _meta[path] = new SongMeta { Title = info.Title, Artist = info.Artist };
+            _pending.Enqueue(path);
+        }
+        ScheduleCategoryRefresh();
+
+        if (_classifying)
+            return;   // el bucle que ya está en marcha se encargará también de estas
+        _classifying = true;
+        int done = 0;
+        try
+        {
+            while (_pending.Count > 0)
+            {
+                CatalogStatusText.Text = $"Clasificando con Deezer… {done}/{done + _pending.Count}";
+                string path = _pending.Peek();
+                if (_meta.TryGetValue(path, out var meta))
+                {
+                    meta.Genre = await _catalog.GetGenreAsync(meta.Artist, meta.Title);
+                    meta.Classified = true;
+                    ScheduleCategoryRefresh();
+                }
+                _pending.Dequeue();
+                if (++done % 25 == 0)
+                    _catalog.Save();
+            }
+            CatalogStatusText.Text = "";
+        }
+        catch (CatalogUnavailableException)
+        {
+            // Las que faltan se quedan en la cola y se reintentan al añadir más canciones.
+            CatalogStatusText.Text = $"Sin conexión con Deezer: faltan {_pending.Count} por clasificar";
+        }
+        finally
+        {
+            _classifying = false;
+            _catalog.Save();
+        }
+    }
+
+    private void ScheduleCategoryRefresh()
+    {
+        // Se agrupan los cambios: como mucho un redibujado cada 0,7 s mientras se clasifica.
+        if (_section != Section.Songs && !_categoryRefresh.IsEnabled)
+            _categoryRefresh.Start();
+    }
+
+    private void RefreshCategories()
+    {
+        if (_section == Section.Songs)
+            return;
+        if (_openCategory is not null)
+        {
+            ShowCategoryDetail(_openCategory);
+            return;
+        }
+
+        bool artists = _section == Section.Artists;
+        CategoryHeader.Visibility = Visibility.Collapsed;
+        SongListPanel.Visibility = Visibility.Collapsed;
+        CardsPanel.Visibility = Visibility.Visible;
+
+        var groups = artists
+            ? _meta.Values.GroupBy(m => m.Artist, StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            : _meta.Values.Where(m => m.Classified).GroupBy(m => m.GenreName, StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(g => g.Key == Unclassified).ThenByDescending(g => g.Count()).ThenBy(g => g.Key);
+
+        CardsPanel.Children.Clear();
+        foreach (var group in groups)
+        {
+            var card = GetCard(group.Key, artists, artists ? null : group.First().Genre?.Picture);
+            card.SetCount(group.Count());
+            CardsPanel.Children.Add(card);
+
+            // Deezer no tiene foto para los subgéneros ("Pop latino", "Flamenco"): se usa la del
+            // artista con más canciones de ese género.
+            if (!artists && !card.HasPicture && !card.FallbackRequested && group.Key != Unclassified)
+            {
+                card.FallbackRequested = true;
+                string topArtist = group.GroupBy(m => m.Artist).OrderByDescending(g => g.Count()).First().Key;
+                _ = LoadFallbackPictureAsync(card, topArtist);
+            }
+        }
+    }
+
+    private CategoryCard GetCard(string key, bool artist, string? picture)
+    {
+        var cards = artist ? _artistCards : _genreCards;
+        if (!cards.TryGetValue(key, out var card))
+        {
+            card = new CategoryCard(key, round: artist) { Style = (Style)FindResource("CardButton") };
+            card.Click += (_, _) =>
+            {
+                _openCategory = card.Key;
+                CategoryScroll.ScrollToTop();
+                RefreshCategories();
+            };
+            cards.Add(key, card);
+            if (artist)
+                _ = LoadArtistPictureAsync(card);
+        }
+        card.SetPicture(picture);
+        return card;
+    }
+
+    private async Task LoadArtistPictureAsync(CategoryCard card)
+    {
+        if (card.Key != SongInfo.UnknownArtist)
+            card.SetPicture(await _catalog.GetArtistPictureAsync(card.Key));
+    }
+
+    private async Task LoadFallbackPictureAsync(CategoryCard card, string artist)
+    {
+        if (artist != SongInfo.UnknownArtist && !card.HasPicture)
+            card.SetPicture(await _catalog.GetArtistPictureAsync(artist));
+    }
+
+    /// <summary>Canciones de un artista o de un género; al pulsar una, suena.</summary>
+    private void ShowCategoryDetail(string key)
+    {
+        bool artists = _section == Section.Artists;
+        var songs = _meta
+            .Where(kv => string.Equals(artists ? kv.Value.Artist : kv.Value.GenreName, key,
+                StringComparison.CurrentCultureIgnoreCase) && (artists || kv.Value.Classified))
+            .OrderBy(kv => kv.Value.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        CardsPanel.Visibility = Visibility.Collapsed;
+        SongListPanel.Visibility = Visibility.Visible;
+        CategoryHeader.Visibility = Visibility.Visible;
+        CategoryTitleText.Text = key;
+        CategorySubtitleText.Text = (artists ? "Artista · " : "Género · ") +
+            (songs.Count == 1 ? "1 canción" : $"{songs.Count} canciones");
+        CategoryHeaderPictureHost.Child = (artists ? _artistCards : _genreCards).TryGetValue(key, out var card)
+            ? card.CreateThumbnail(72)
+            : null;
+
+        var accent = (Brush)FindResource("Accent");
+        var muted = (Brush)FindResource("Muted");
+        SongListPanel.Children.Clear();
+        foreach (var (path, meta) in songs)
+        {
+            bool playing = string.Equals(path, _playlist.Current, StringComparison.OrdinalIgnoreCase);
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var icon = new TextBlock
+            {
+                Text = playing ? "\uE995" : "\uE768",   // altavoz / reproducir
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                Foreground = playing ? accent : muted,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            var title = new TextBlock
+            {
+                Text = meta.Title,
+                Foreground = playing ? accent : Brushes.White,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            var detail = new TextBlock
+            {
+                Text = artists ? meta.GenreName : meta.Artist,
+                Foreground = muted,
+                Margin = new Thickness(16, 0, 0, 0),
+            };
+            Grid.SetColumn(title, 1);
+            Grid.SetColumn(detail, 2);
+            row.Children.Add(icon);
+            row.Children.Add(title);
+            row.Children.Add(detail);
+
+            var button = new Button { Style = (Style)FindResource("SongRowButton"), Content = row, Tag = path };
+            button.Click += SongRow_Click;
+            SongListPanel.Children.Add(button);
+        }
+    }
+
+    private void SongRow_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string path } && _playlist.JumpTo(path) is { } song)
+            PlaySong(song);
+    }
+
+    private void CategoryBack_Click(object sender, RoutedEventArgs e)
+    {
+        _openCategory = null;
+        RefreshCategories();
     }
 
     // ───────────────────────────── Vista mosaico ─────────────────────────────
@@ -165,14 +413,29 @@ public partial class MainWindow : Window
     private void SetMosaicView(bool mosaic)
     {
         _mosaicView = mosaic;
-        MosaicView.Visibility = mosaic ? Visibility.Visible : Visibility.Collapsed;
-        SingleView.Visibility = mosaic ? Visibility.Collapsed : Visibility.Visible;
+        ApplyView();
+    }
+
+    /// <summary>El mosaico solo se ve en la pestaña Canciones con la vista mosaico elegida.</summary>
+    private bool MosaicVisible => _section == Section.Songs && _mosaicView;
+
+    /// <summary>Muestra la vista que toca según la pestaña y la vista elegidas.</summary>
+    private void ApplyView()
+    {
+        bool songs = _section == Section.Songs;
+        MosaicView.Visibility = MosaicVisible ? Visibility.Visible : Visibility.Collapsed;
+        SingleView.Visibility = songs && !_mosaicView ? Visibility.Visible : Visibility.Collapsed;
+        CategoryView.Visibility = songs ? Visibility.Collapsed : Visibility.Visible;
+        ViewToggleButton.Visibility = songs ? Visibility.Visible : Visibility.Collapsed;
         // El botón muestra la vista a la que se cambia al pulsarlo.
-        ViewToggleIcon.Text = mosaic ? "" : "";
-        ViewToggleText.Text = mosaic ? "Vista original" : "Vista mosaico";
+        ViewToggleIcon.Text = _mosaicView ? "\uE8D6" : "\uE8A9";
+        ViewToggleText.Text = _mosaicView ? "Vista original" : "Vista mosaico";
+        SongsTab.Tag = songs ? "Active" : null;
+        ArtistsTab.Tag = _section == Section.Artists ? "Active" : null;
+        GenresTab.Tag = _section == Section.Genres ? "Active" : null;
 
         MoveControls();
-        if (mosaic)
+        if (MosaicVisible)
         {
             ScrollToActiveTile();
         }
@@ -256,7 +519,7 @@ public partial class MainWindow : Window
         }
 
         MoveControls();
-        if (_mosaicView)
+        if (MosaicVisible)
             ScrollToActiveTile();
     }
 
@@ -266,7 +529,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void MoveControls()
     {
-        Decorator target = _mosaicView && _activeTile?.ControlsHost is { } host ? host : OriginalControlsHost;
+        Decorator target = _section != Section.Songs ? BarControlsHost
+            : MosaicVisible && _activeTile?.ControlsHost is { } host ? host
+            : OriginalControlsHost;
         if (ControlsPanel.Parent == target)
             return;
 
@@ -282,9 +547,9 @@ public partial class MainWindow : Window
     {
         // Dentro de la portada los controles ocupan todo su ancho; si la portada es más estrecha que
         // los botones, el Viewbox de la tesela los reduce en lugar de recortarlos.
-        ControlsPanel.Width = ControlsPanel.Parent == OriginalControlsHost || _activeTile is null
-            ? double.NaN
-            : Math.Max(MinControlsWidth, _activeTile.ActualWidth - 32);
+        ControlsPanel.Width = _activeTile is not null && ControlsPanel.Parent == _activeTile.ControlsHost
+            ? Math.Max(MinControlsWidth, _activeTile.ActualWidth - 32)
+            : double.NaN;
     }
 
     private void ScrollToActiveTile()
@@ -302,7 +567,7 @@ public partial class MainWindow : Window
     /// <summary>Carga las portadas visibles (y una pantalla por encima y por debajo) y suelta el resto.</summary>
     private void UpdateVisibleCovers()
     {
-        if (!_mosaicView)
+        if (!MosaicVisible)
             return;
 
         double margin = MosaicView.ViewportHeight;
@@ -375,8 +640,11 @@ public partial class MainWindow : Window
         MessageBox.Show(this, $"No se pudo reproducir «{TitleText.Text}» y se ha quitado de la lista.\n{e.ErrorException.Message}",
             "Launcherito", MessageBoxButton.OK, MessageBoxImage.Error);
 
+        if (_playlist.Current is { } failed)
+            _meta.Remove(failed);
         var next = _playlist.RemoveCurrent();
         SyncMosaic();
+        ScheduleCategoryRefresh();
         if (next is not null)
         {
             PlaySong(next);
@@ -492,6 +760,8 @@ public partial class MainWindow : Window
         _player.MediaEnded -= Player_MediaEnded;
         _player.MediaFailed -= Player_MediaFailed;
         _player.Close();
+        _categoryRefresh.Stop();
+        _catalog.Save();
         base.OnClosed(e);
     }
 }

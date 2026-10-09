@@ -113,6 +113,79 @@
             </Setter>
         </Style>
 
+        <!-- Pestaña de la barra superior (Canciones / Artistas / Géneros). Tag="Active" la resalta. -->
+        <Style x:Key="TabButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Active">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Accent}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tarjeta de artista o género: sin marco de botón, se aclara al pasar el ratón -->
+        <Style x:Key="CardButton" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Fila de canción en el detalle de un artista o género -->
+        <Style x:Key="SongRowButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1C1C1C"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Botón de texto discreto -->
         <Style x:Key="LinkButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Muted}"/>
@@ -195,13 +268,24 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Barra superior: añadir canciones | número de canciones | cambio de vista -->
+            <!-- Barra superior: pestañas | añadir canciones y estado | cambio de vista -->
             <Grid Grid.Row="0" Margin="20,14,20,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="SongsTab" Style="{StaticResource TabButton}" Content="Canciones" Click="SongsTab_Click"/>
+                    <Button x:Name="ArtistsTab" Style="{StaticResource TabButton}" Content="Artistas" Click="ArtistsTab_Click"/>
+                    <Button x:Name="GenresTab" Style="{StaticResource TabButton}" Content="Géneros" Click="GenresTab_Click"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,12,0">
                     <Button Style="{StaticResource LinkButton}" Content="＋  Añadir canciones" Click="LoadButton_Click"/>
                     <TextBlock x:Name="SongCountText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
+                    <TextBlock x:Name="CatalogStatusText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
                 </StackPanel>
-                <Button x:Name="ViewToggleButton" Style="{StaticResource PillButton}" HorizontalAlignment="Right"
+                <Button x:Name="ViewToggleButton" Grid.Column="2" Style="{StaticResource PillButton}"
                         Click="ViewToggleButton_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock x:Name="ViewToggleIcon" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
@@ -216,6 +300,56 @@
                           HorizontalScrollBarVisibility="Disabled" ScrollChanged="MosaicView_ScrollChanged">
                 <local:MosaicPanel x:Name="Mosaic" Margin="20,8,20,20"/>
             </ScrollViewer>
+
+            <!-- Vista de artistas o géneros: tarjetas con foto, o las canciones de una de ellas -->
+            <Grid x:Name="CategoryView" Grid.Row="1" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Cabecera del detalle: volver | foto | nombre -->
+                <Grid x:Name="CategoryHeader" Margin="20,6,20,10" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Style="{StaticResource LinkButton}" Content="‹  Volver" FontSize="14" VerticalAlignment="Center"
+                            Click="CategoryBack_Click"/>
+                    <Border x:Name="CategoryHeaderPictureHost" Grid.Column="1" Margin="20,0,16,0"/>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock x:Name="CategoryTitleText" FontSize="28" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="CategorySubtitleText" FontSize="13" Foreground="{StaticResource Muted}"/>
+                    </StackPanel>
+                </Grid>
+
+                <ScrollViewer x:Name="CategoryScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="20,8,20,20">
+                        <WrapPanel x:Name="CardsPanel"/>
+                        <StackPanel x:Name="SongListPanel" Visibility="Collapsed"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Reproductor en la parte de abajo mientras se navega por artistas y géneros -->
+                <Border Grid.Row="2" Background="#0E0E0E" Padding="20,10,20,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock x:Name="BarTitleText" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock x:Name="BarArtistText" FontSize="12" Foreground="{StaticResource Muted}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <Border x:Name="BarControlsHost" Grid.Column="1" Width="520"/>
+                    </Grid>
+                </Border>
+            </Grid>
 
             <!-- Vista original: una canción -->
             <Grid x:Name="SingleView" Grid.Row="1" Margin="36,8,36,36">

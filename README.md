@@ -2,7 +2,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.1.3-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.2-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -19,6 +19,7 @@
 - Carga de varios `.mp3` a la vez (o *Abrir con → Launcherito*) y lista de reproducción sin límite.
 - Anterior / siguiente, modo aleatorio (activado por defecto) u orden alfabético, y paso automático a la siguiente canción.
 - Las portadas del mosaico se cargan en segundo plano solo cuando se ven, para que una biblioteca grande no dispare la memoria.
+- **Pestañas Artistas y Géneros**: las canciones se clasifican automáticamente con la [API de Deezer](https://developers.deezer.com/api) (gratuita, sin clave). Cada artista tiene su foto y cada género su imagen; al pulsar uno se ven sus canciones. Lo consultado se guarda en `%LOCALAPPDATA%\Launcherito\catalogo.json`, así que solo se pregunta una vez por canción.
 
 ## 🚀 Características previstas
 
@@ -56,8 +57,8 @@
 | **1.1.1** | Portadas desenfocadas solo durante la animación y nítidas al quedarse quietas ✅ |
 | **1.1.2** | La ventana muestra la versión del programa ✅ |
 | **1.1.3** | Animaciones más lentas: se ve cómo se forma el mosaico desde la canción que suena ✅ |
-| 1.2 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
-| 1.3 | Conexión a una API para clasificar las canciones por género y artista |
+| **1.2** | Pestañas Canciones / Artistas / Géneros: clasificación con la API de Deezer y fotos de cada artista y género ✅ |
+| 1.3 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
 | 1.4 | Sistema de temas y personalización |
 | 1.5 | Visualizador y color dinámico |
 | 1.6 | Ecualizador, atajos globales y mini‑reproductor |

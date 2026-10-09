@@ -3,13 +3,15 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace Launcherito;
 
 /// <summary>
 /// Animaciones del mosaico: cada canción nueva entra con una animación elegida al azar y las portadas
-/// que ya estaban se desplazan hasta su nuevo sitio en lugar de saltar. Solo se anima lo que se ve, y
-/// al terminar cada tesela suelta sus transformaciones y relojes, así que no queda nada en memoria.
+/// que ya estaban se desplazan hasta su nuevo sitio en lugar de saltar. Las nuevas entran en tandas de
+/// 10: mientras esperan están ocultas y sin animación en marcha. Al terminar, cada tesela suelta sus
+/// transformaciones y relojes, así que no queda nada en memoria.
 /// </summary>
 internal sealed class TileAnimator
 {
@@ -18,10 +20,11 @@ internal sealed class TileAnimator
     private static readonly Intro[] Intros = Enum.GetValues<Intro>();
     // Todas las animaciones van 2,5 veces más lentas que los tiempos escritos abajo, para que se vean bien.
     private const double Slowdown = 2.5;
-    // Las nuevas entran una tras otra para que se vea cómo se forma el mosaico: como mucho 300 ms entre
-    // una y la siguiente, y todas empezadas en 4 s aunque sean muchas (tiempos reales, ya ralentizados).
-    private const double MaxStepMs = 300;
-    private const double FormingMs = 4000;
+    // Las nuevas entran de 10 en 10, una tras otra dentro de cada tanda (150 ms reales entre una y la
+    // siguiente). La tanda siguiente empieza cuando la anterior ha terminado de colocarse.
+    private const int WaveSize = 10;
+    private const double WaveStepMs = 150;
+    private const double LongestIntroMs = 900;   // la entrada más larga (Drop), sin ralentizar
 
     // Rutas a las transformaciones del TransformGroup que monta Prepare (escala, sesgo, giro, traslación).
     private const string ScaleX = "(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)";
@@ -35,12 +38,15 @@ internal sealed class TileAnimator
     private readonly ScrollViewer _viewer;
     private readonly MosaicPanel _panel;
     private readonly Dictionary<MosaicTile, Storyboard> _running = new();
+    private readonly HashSet<MosaicTile> _waiting = new();   // nuevas, ocultas hasta que les toque su tanda
+    private readonly DispatcherTimer _waveTimer = new();
     private int _lastIntro = -1;
 
     public TileAnimator(ScrollViewer viewer, MosaicPanel panel)
     {
         _viewer = viewer;
         _panel = panel;
+        _waveTimer.Tick += (_, _) => NextWave(from: null);
     }
 
     /// <summary>Un fotograma clave: instante (ms desde que empieza), valor y curva, o salto seco si Step.</summary>
@@ -70,45 +76,83 @@ internal sealed class TileAnimator
             return;
         var skip = activeLocked ? active : null;
 
-        // También una pantalla por encima y otra por debajo: justo después el mosaico puede
-        // desplazarse hasta la canción activa y las que entran quedarían fuera de la vista.
-        double top = _viewer.VerticalOffset - _viewer.ViewportHeight;
-        double bottom = _viewer.VerticalOffset + _viewer.ViewportHeight * 2;
-        bool InView(Rect slot) => slot.Bottom > top && slot.Top < bottom;
-
-        // Las nuevas entran de una en una, empezando por la canción que suena y siguiendo por las más
-        // cercanas a ella. El mosaico se desplaza enseguida hasta esa canción, así que son las que se
-        // ven: si entraran de arriba abajo, las primeras lo harían fuera de la pantalla.
-        var anchor = active?.Parent == _panel
-            ? Center(LayoutInformation.GetLayoutSlot(active))
-            : new Point(_panel.ActualWidth / 2, _viewer.VerticalOffset + _viewer.ViewportHeight / 2);
-        var entering = added
-            .Where(tile => tile != skip && tile.Parent == _panel)
-            .Select(tile => (Tile: tile, Slot: LayoutInformation.GetLayoutSlot(tile)))
-            .Where(item => InView(item.Slot))
-            .OrderBy(item => (Center(item.Slot) - anchor).LengthSquared)
-            .ToList();
-
-        // Los tiempos de las animaciones se escriben sin ralentizar: se divide entre Slowdown.
-        var step = TimeSpan.FromMilliseconds(Math.Min(MaxStepMs, FormingMs / Math.Max(1, entering.Count)) / Slowdown);
-        TimeSpan? impact = null;   // primer choque, para que las demás se aparten justo entonces
-        for (int i = 0; i < entering.Count; i++)
+        // Todas las nuevas se ocultan y esperan su tanda. Se hace antes de pintar, así no llegan a verse.
+        foreach (var tile in added)
         {
-            var hit = PlayIntro(entering[i].Tile, entering[i].Slot, step * i, _viewer.VerticalOffset);
-            if (hit < impact || (impact is null && hit is not null))
-                impact = hit;
+            if (tile == skip || tile.Parent != _panel)
+                continue;
+            tile.Opacity = 0;
+            _waiting.Add(tile);
         }
+
+        // Si ya hay tandas en marcha, las nuevas se suman a la cola; si no, empieza la primera,
+        // alrededor de la canción que suena (el mosaico se desplaza enseguida hasta ella).
+        TimeSpan? impact = _waveTimer.IsEnabled ? null : NextWave(from: active);
 
         if (oldSlots is null)
             return;
+        // Las que ya estaban se desplazan a su sitio nuevo; solo las que están en pantalla o cerca.
+        double top = _viewer.VerticalOffset - _viewer.ViewportHeight;
+        double bottom = _viewer.VerticalOffset + _viewer.ViewportHeight * 2;
+        bool InView(Rect slot) => slot.Bottom > top && slot.Top < bottom;
         foreach (var (tile, old) in oldSlots)
         {
-            if (tile == skip || tile.Parent != _panel)
+            if (tile == skip || tile.Parent != _panel || _waiting.Contains(tile))
                 continue;
             var now = LayoutInformation.GetLayoutSlot(tile);
             if (old != now && !old.IsEmpty && (InView(old) || InView(now)))
                 PlayMove(tile, old, now, impact);
         }
+    }
+
+    /// <summary>
+    /// Hace entrar la siguiente tanda: las 10 que esperan más cerca de <paramref name="from"/> o, si es
+    /// null, del centro de lo que se está viendo (así el mosaico se forma donde se mira).
+    /// Devuelve el instante del primer choque, si alguna entra chocando.
+    /// </summary>
+    private TimeSpan? NextWave(MosaicTile? from)
+    {
+        _waveTimer.Stop();
+        _waiting.RemoveWhere(tile => tile.Parent != _panel);   // quitadas de la lista entretanto
+        if (_waiting.Count == 0)
+            return null;
+
+        if (_viewer.Visibility != Visibility.Visible)
+        {
+            // Se ha cambiado a la vista original: las que faltan se muestran sin animación.
+            foreach (var tile in _waiting)
+                tile.ClearValue(UIElement.OpacityProperty);
+            _waiting.Clear();
+            return null;
+        }
+
+        var anchor = from?.Parent == _panel
+            ? Center(LayoutInformation.GetLayoutSlot(from))
+            : new Point(_panel.ActualWidth / 2, _viewer.VerticalOffset + _viewer.ViewportHeight / 2);
+        var wave = _waiting
+            .Select(tile => (Tile: tile, Slot: LayoutInformation.GetLayoutSlot(tile)))
+            .OrderBy(item => (Center(item.Slot) - anchor).LengthSquared)
+            .Take(WaveSize)
+            .ToList();
+
+        // Los tiempos de las animaciones se escriben sin ralentizar: se divide entre Slowdown.
+        var step = TimeSpan.FromMilliseconds(WaveStepMs / Slowdown);
+        TimeSpan? impact = null;   // primer choque, para que las demás se aparten justo entonces
+        for (int i = 0; i < wave.Count; i++)
+        {
+            _waiting.Remove(wave[i].Tile);
+            var hit = PlayIntro(wave[i].Tile, wave[i].Slot, step * i, _viewer.VerticalOffset);
+            if (hit < impact || (impact is null && hit is not null))
+                impact = hit;
+        }
+
+        if (_waiting.Count > 0)
+        {
+            // La siguiente tanda, cuando la última de esta haya terminado de colocarse.
+            _waveTimer.Interval = TimeSpan.FromMilliseconds((wave.Count - 1) * WaveStepMs + LongestIntroMs * Slowdown);
+            _waveTimer.Start();
+        }
+        return impact;
     }
 
     private static Point Center(Rect slot) => new(slot.X + slot.Width / 2, slot.Y + slot.Height / 2);
@@ -245,6 +289,7 @@ internal sealed class TileAnimator
     private Storyboard Prepare(MosaicTile tile, Point origin)
     {
         Finish(tile);
+        tile.ClearValue(UIElement.OpacityProperty);   // la ocultaba mientras esperaba su tanda
         tile.IsAnimating = true;   // carátula desenfocada mientras se mueve
         tile.RenderTransformOrigin = origin;
         tile.RenderTransform = new TransformGroup

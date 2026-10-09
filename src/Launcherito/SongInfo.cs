@@ -6,6 +6,9 @@ namespace Launcherito;
 /// <summary>Título, artista y carátula de una canción, leídos de sus etiquetas ID3.</summary>
 public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
 {
+    /// <summary>Artista que se muestra cuando la canción no lo trae en sus etiquetas.</summary>
+    public const string UnknownArtist = "Artista desconocido";
+
     /// <summary>Copia diminuta de la carátula, solo si se pide al leerla (null si no).</summary>
     public BitmapImage? Preview { get; init; }
 
@@ -16,12 +19,12 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
     /// <summary>
     /// Lee las etiquetas de un .mp3. Se puede llamar desde cualquier hilo: la carátula se devuelve congelada.
     /// </summary>
-    /// <param name="maxCoverSize">Ancho máximo en píxeles con el que se decodifica la carátula.</param>
+    /// <param name="maxCoverSize">Ancho máximo en píxeles con el que se decodifica la carátula; 0 para no leerla.</param>
     /// <param name="previewSize">Si es mayor que 0, ancho de una segunda copia diminuta, sacada de los mismos datos.</param>
     public static SongInfo Read(string path, int maxCoverSize, int previewSize = 0)
     {
         string title = Path.GetFileNameWithoutExtension(path);
-        string artist = "Artista desconocido";
+        string artist = UnknownArtist;
         byte[]? coverData = null;
 
         try
@@ -40,7 +43,7 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
                     title = file.Tag.Title;
                 if (!string.IsNullOrWhiteSpace(file.Tag.FirstPerformer))
                     artist = file.Tag.FirstPerformer;
-                if (file.Tag.Pictures.Length > 0)
+                if (maxCoverSize > 0 && file.Tag.Pictures.Length > 0)
                     coverData = file.Tag.Pictures[0].Data.Data;
             }
         }
