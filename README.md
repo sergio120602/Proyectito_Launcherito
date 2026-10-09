@@ -2,7 +2,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-0.1-blueviolet)
+![Versión](https://img.shields.io/badge/versión-0.2-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -41,7 +41,7 @@
 | Versión | Objetivo |
 |---------|----------|
 | **0.1** | Creación del proyecto, repositorio y documentación inicial ✅ |
-| 0.2 | Estructura base de la aplicación y ventana principal |
+| **0.2** | Aplicación base: ventana, carga de un .mp3, carátula y reproductor sencillo ✅ |
 | 0.3 | Escaneo de la biblioteca local y reproducción básica |
 | 0.4 | Listas de reproducción y búsqueda |
 | 0.5 | Sistema de temas y personalización |
@@ -53,12 +53,23 @@
 
 ## 📦 Instalación
 
-> 🚧 Todavía no hay versión instalable. Las instrucciones aparecerán aquí a partir de la versión 0.3.
+### Opción 1: descargar el ejecutable
+1. Ve a [Releases](https://github.com/sergio120602/Proyectito_Launcherito/releases) y descarga `Launcherito.exe` de la última versión.
+2. Ábrelo. No necesita instalación ni tener .NET instalado.
+
+### Opción 2: compilar desde el código
+Requisitos: [.NET 10 SDK](https://dotnet.microsoft.com/download) en Windows.
 
 ```bash
 git clone https://github.com/sergio120602/Proyectito_Launcherito.git
-cd Proyectito_Launcherito
+cd Proyectito_Launcherito/src/Launcherito
+dotnet run                                   # ejecutar en modo desarrollo
+dotnet publish -c Release -o ../../publish   # generar publish/Launcherito.exe
 ```
+
+## 🛠️ Tecnología
+- **C# / WPF** sobre **.NET 10**
+- [TagLibSharp](https://github.com/mono/taglib-sharp) para leer metadatos y carátulas
 
 ## 🔖 Control de versiones
 

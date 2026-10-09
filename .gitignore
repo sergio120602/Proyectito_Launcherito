@@ -18,3 +18,9 @@ __pycache__/
 # Logs y entorno
 *.log
 .env
+
+# Compilación .NET
+bin/
+obj/
+publish/
+*.user
