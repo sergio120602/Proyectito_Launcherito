@@ -46,7 +46,7 @@ public sealed class MosaicTile : Border
     public MosaicTile(string path)
     {
         SongPath = path;
-        Title = System.IO.Path.GetFileNameWithoutExtension(path);
+        Title = SongInfo.FallbackTitle(path);
         CornerRadius = new CornerRadius(Radius);
         Background = EmptyBackground;
         Cursor = Cursors.Hand;

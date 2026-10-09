@@ -59,10 +59,29 @@ public sealed class Playlist
         if (added > 0)
         {
             string? current = Current;
-            _songs.Sort((a, b) => NameComparer.Compare(Path.GetFileNameWithoutExtension(a), Path.GetFileNameWithoutExtension(b)));
+            _songs.Sort((a, b) => NameComparer.Compare(SongInfo.FallbackTitle(a), SongInfo.FallbackTitle(b)));
             RebuildOrder(current);
         }
         return added;
+    }
+
+    /// <summary>Quita canciones de la lista, salvo la que está sonando. Devuelve cuántas se han quitado.</summary>
+    public int Remove(IEnumerable<string> paths)
+    {
+        string? current = Current;
+        var gone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in paths)
+        {
+            if (!string.Equals(path, current, StringComparison.OrdinalIgnoreCase) && _known.Remove(path))
+                gone.Add(path);
+        }
+
+        if (gone.Count > 0)
+        {
+            _songs.RemoveAll(gone.Contains);
+            RebuildOrder(current);
+        }
+        return gone.Count;
     }
 
     /// <summary>Hace que la canción indicada sea la actual sin cambiar el orden de reproducción.</summary>

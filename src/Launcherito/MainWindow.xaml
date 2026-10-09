@@ -186,6 +186,35 @@
             </Setter>
         </Style>
 
+        <!-- Botón verde de Spotify (pantalla inicial y panel del enlace) -->
+        <SolidColorBrush x:Key="SpotifyGreen" Color="#1DB954"/>
+        <Style x:Key="SpotifyButton" TargetType="Button">
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="{StaticResource SpotifyGreen}"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="22,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="22"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1ED760"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Botón de texto discreto -->
         <Style x:Key="LinkButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Muted}"/>
@@ -257,9 +286,18 @@
     </Window.Resources>
 
     <Grid>
-        <!-- Pantalla inicial -->
-        <Button x:Name="LoadButton" Content="Cargar Archivos" Style="{StaticResource BigButton}"
-                HorizontalAlignment="Center" VerticalAlignment="Center" Click="LoadButton_Click"/>
+        <!-- Pantalla inicial: canciones del PC o una lista de Spotify -->
+        <StackPanel x:Name="StartPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Button Content="Cargar Archivos" Style="{StaticResource BigButton}" Click="LoadButton_Click"/>
+            <Button Style="{StaticResource SpotifyButton}" Margin="0,22,0,0" HorizontalAlignment="Center"
+                    AutomationProperties.Name="Añadir lista de Spotify"
+                    Click="SpotifyButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                    <TextBlock Text="Añadir lista de Spotify" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
 
         <!-- Reproductor -->
         <Grid x:Name="PlayerPanel" Visibility="Collapsed">
@@ -282,7 +320,10 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,12,0">
                     <Button Style="{StaticResource LinkButton}" Content="＋  Añadir canciones" Click="LoadButton_Click"/>
+                    <Button Style="{StaticResource LinkButton}" Content="＋  Lista de Spotify" Margin="16,0,0,0"
+                            Click="SpotifyButton_Click"/>
                     <TextBlock x:Name="SongCountText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
+                    <TextBlock x:Name="SpotifyStatusText" FontSize="13" Foreground="{StaticResource SpotifyGreen}" Margin="16,0,0,0"/>
                     <TextBlock x:Name="CatalogStatusText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
                 </StackPanel>
                 <Button x:Name="ViewToggleButton" Grid.Column="2" Style="{StaticResource PillButton}"
@@ -418,6 +459,29 @@
                     </StackPanel>
                 </Border>
             </Grid>
+        </Grid>
+
+        <!-- Panel para pegar el enlace de una lista de Spotify, por encima de todo -->
+        <Grid x:Name="SpotifyOverlay" Background="#CC000000" Visibility="Collapsed">
+            <Border Background="#161616" CornerRadius="18" Padding="28,24" Margin="20"
+                    MaxWidth="560" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Añadir lista de Spotify" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+                               Text="Pega el enlace de una lista pública o de un álbum (Compartir → Copiar enlace). Se cargan hasta 100 canciones con su portada. Las que ya tengas en .mp3 suenan enteras; las demás, con el fragmento de 30 s que da Spotify."/>
+                    <TextBox x:Name="SpotifyLinkBox" Margin="0,18,0,0" Padding="10,8" FontSize="14"
+                             Background="#0E0E0E" Foreground="White" CaretBrush="White" BorderBrush="#333333"
+                             KeyDown="SpotifyLinkBox_KeyDown"/>
+                    <TextBlock x:Name="SpotifyDialogStatus" Margin="0,10,0,0" FontSize="13" TextWrapping="Wrap"
+                               Foreground="{StaticResource Muted}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                        <Button Style="{StaticResource LinkButton}" Content="Cancelar" FontSize="14" VerticalAlignment="Center"
+                                Click="SpotifyCancel_Click"/>
+                        <Button x:Name="SpotifyAddButton" Style="{StaticResource SpotifyButton}" Content="Añadir"
+                                Margin="22,0,0,0" Click="SpotifyAdd_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Window>

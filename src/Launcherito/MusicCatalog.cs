@@ -201,7 +201,7 @@ public sealed class MusicCatalog
             : null;
 
     /// <summary>Quita añadidos como "- Remastered 2005" o "(feat. X)" que estorban en la búsqueda.</summary>
-    private static string CleanTitle(string title)
+    internal static string CleanTitle(string title)
     {
         int dash = title.IndexOf(" - ", StringComparison.Ordinal);
         if (dash > 0)

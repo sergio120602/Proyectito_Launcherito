@@ -41,6 +41,9 @@ public partial class MainWindow : Window
     private const string Unclassified = "Sin clasificar";
     private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
 
+    private readonly Dictionary<string, string> _localSongs = new();   // clave artista|título → .mp3 cargado
+    private readonly DispatcherTimer _spotifyStatusClear = new() { Interval = TimeSpan.FromSeconds(12) };
+
     private int _metadataVersion;     // invalida lecturas de etiquetas de una canción que ya no suena
     private string? _coverShownFor;   // canción cuya carátula grande está cargada en la vista original
 
@@ -60,6 +63,11 @@ public partial class MainWindow : Window
         SeekSlider.AddHandler(PreviewMouseLeftButtonDownEvent,
             new MouseButtonEventHandler(SeekSlider_PreviewMouseLeftButtonDown), handledEventsToo: true);
         UpdateShuffleButton();
+        _spotifyStatusClear.Tick += (_, _) =>
+        {
+            _spotifyStatusClear.Stop();
+            SpotifyStatusText.Text = "";
+        };
         _categoryRefresh.Tick += (_, _) =>
         {
             _categoryRefresh.Stop();
@@ -85,6 +93,131 @@ public partial class MainWindow : Window
             AddSongs(dialog.FileNames);
     }
 
+    // ───────────────────────────── Listas de Spotify ─────────────────────────────
+
+    private void SpotifyButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Si se acaba de copiar un enlace de Spotify, ya aparece pegado.
+        try
+        {
+            if (SpotifyLibrary.ParseLink(Clipboard.GetText()) is not null)
+                SpotifyLinkBox.Text = Clipboard.GetText().Trim();
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            // Portapapeles ocupado por otro programa: se pega a mano.
+        }
+        SpotifyDialogStatus.Text = "";
+        SpotifyOverlay.Visibility = Visibility.Visible;
+        SpotifyLinkBox.Focus();
+        SpotifyLinkBox.SelectAll();
+    }
+
+    private void SpotifyLinkBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+            _ = AddSpotifyListAsync();
+        else if (e.Key == Key.Escape)
+            SpotifyCancel_Click(sender, e);
+    }
+
+    private void SpotifyAdd_Click(object sender, RoutedEventArgs e) => _ = AddSpotifyListAsync();
+
+    private void SpotifyCancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (SpotifyAddButton.IsEnabled)   // mientras se lee la lista no se cierra
+            SpotifyOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Lee la lista de Spotify y añade sus canciones. Las que ya están en un .mp3 cargado no se repiten
+    /// (suena el .mp3 entero); las demás suenan con el fragmento de 30 s.
+    /// </summary>
+    private async Task AddSpotifyListAsync()
+    {
+        if (!SpotifyAddButton.IsEnabled)
+            return;
+        if (SpotifyLibrary.ParseLink(SpotifyLinkBox.Text) is not { } link)
+        {
+            SpotifyDialogStatus.Text = "Ese enlace no es de una lista ni de un álbum de Spotify.";
+            return;
+        }
+
+        SpotifyList list;
+        SpotifyAddButton.IsEnabled = false;
+        SpotifyDialogStatus.Text = "Leyendo la lista en Spotify…";
+        try
+        {
+            list = await SpotifyLibrary.LoadAsync(link.Type, link.Id);
+        }
+        catch (SpotifyImportException ex)
+        {
+            SpotifyDialogStatus.Text = ex.Message;
+            return;
+        }
+        finally
+        {
+            SpotifyAddButton.IsEnabled = true;
+        }
+
+        var keys = new List<string>();
+        int owned = 0, unavailable = 0;
+        foreach (var track in list.Tracks)
+        {
+            if (_localSongs.ContainsKey(SpotifyLibrary.MatchKey(track.Artists, track.Title)))
+                owned++;
+            else if (track.PreviewUrl is null)
+                unavailable++;
+            else
+                keys.Add(track.Key);
+        }
+        int added = AddToPlaylist(keys);
+
+        var summary = new List<string> { $"«{list.Name}»: {Songs(added)} añadida{(added == 1 ? "" : "s")}" };
+        if (owned > 0)
+            summary.Add($"{owned} ya la{(owned == 1 ? "" : "s")} tenías en .mp3");
+        if (keys.Count > added)
+            summary.Add($"{keys.Count - added} ya estaba{(keys.Count - added == 1 ? "" : "n")}");
+        if (unavailable > 0)
+            summary.Add($"{unavailable} sin fragmento en Spotify");
+        string text = list.Tracks.Count == 0 ? $"«{list.Name}» no tiene canciones." : string.Join("  ·  ", summary);
+
+        // Si no se ha añadido nada el panel sigue abierto con la explicación; si no, se cierra.
+        if (added == 0)
+        {
+            SpotifyDialogStatus.Text = text;
+            return;
+        }
+        SpotifyOverlay.Visibility = Visibility.Collapsed;
+        SpotifyLinkBox.Text = "";
+        // En la barra superior cabe poco: el resumen corto y el detalle al pasar el ratón.
+        SpotifyStatusText.Text = $"Spotify: +{Songs(added)}";
+        SpotifyStatusText.ToolTip = text;
+        _spotifyStatusClear.Stop();
+        _spotifyStatusClear.Start();
+    }
+
+    private static string Songs(int count) => count == 1 ? "1 canción" : $"{count} canciones";
+
+    /// <summary>
+    /// Quita las canciones de Spotify que ya están en un .mp3 cargado: suena el archivo, que está entero.
+    /// La que está sonando se deja hasta que se cambie de canción.
+    /// </summary>
+    private void RemoveSpotifyDuplicates()
+    {
+        var duplicates = _playlist.Songs
+            .Where(key => SpotifyLibrary.TryGet(key, out var track) &&
+                          _localSongs.ContainsKey(SpotifyLibrary.MatchKey(track.Artists, track.Title)))
+            .ToList();
+        if (_playlist.Remove(duplicates) == 0)
+            return;
+        foreach (var key in duplicates.Where(key => key != _playlist.Current))
+            _meta.Remove(key);
+        SyncMosaic();
+        UpdatePosition();
+        ScheduleCategoryRefresh();
+    }
+
     private void AddSongs(IEnumerable<string> paths)
     {
         var valid = new List<string>();
@@ -104,11 +237,17 @@ public partial class MainWindow : Window
                 "Launcherito", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
+        AddToPlaylist(valid);
+    }
+
+    /// <summary>Añade canciones (.mp3 o de Spotify) a la lista y al mosaico. Devuelve cuántas son nuevas.</summary>
+    private int AddToPlaylist(IReadOnlyList<string> songs)
+    {
         int before = _playlist.Count;
         bool wasEmpty = before == 0;
-        _playlist.Add(valid);
+        int added = _playlist.Add(songs);
         SyncMosaic();
-        _ = ClassifyAsync(valid);
+        _ = ClassifyAsync(songs);
 
         // Al pasar de una canción a varias se cambia sola a la vista mosaico.
         if (before <= 1 && _playlist.Count > 1 && !_mosaicView)
@@ -119,6 +258,7 @@ public partial class MainWindow : Window
             PlaySong(first);
         else
             UpdatePosition();
+        return added;
     }
 
     private void PlaySong(string path)
@@ -133,10 +273,11 @@ public partial class MainWindow : Window
         CurrentTimeText.Text = "0:00";
         TotalTimeText.Text = "0:00";
 
-        _player.Open(new Uri(path));
+        // Las canciones de Spotify suenan con su fragmento de 30 s, que se reproduce desde Internet.
+        _player.Open(new Uri(SpotifyLibrary.TryGet(path, out var track) && track.PreviewUrl is { } preview ? preview : path));
         if (_openCategory is not null)
             ScheduleCategoryRefresh();   // para resaltar la canción que suena en el detalle
-        LoadButton.Visibility = Visibility.Collapsed;
+        StartPanel.Visibility = Visibility.Collapsed;
         PlayerPanel.Visibility = Visibility.Visible;
         Play();
     }
@@ -186,7 +327,7 @@ public partial class MainWindow : Window
         if (_meta.TryGetValue(path, out var known))
             SetSongTexts(known.Title, known.Artist);
         else
-            SetSongTexts(Path.GetFileNameWithoutExtension(path), "");
+            SetSongTexts(SongInfo.FallbackTitle(path), "");
         if (_coverShownFor != path)
             ShowCover(null, null);
 
@@ -254,11 +395,24 @@ public partial class MainWindow : Window
 
         // Solo etiquetas, sin carátula (maxCoverSize 0), y fuera del hilo de la interfaz.
         var tags = await Task.Run(() => fresh.Select(path => (path, info: SongInfo.Read(path, 0))).ToList());
+        bool newLocal = false;
         foreach (var (path, info) in tags)
         {
-            _meta[path] = new SongMeta { Title = info.Title, Artist = info.Artist };
+            if (SpotifyLibrary.TryGet(path, out var track))
+            {
+                // Sin la marca de fragmento y solo el primer artista, para agrupar y buscar en Deezer.
+                _meta[path] = new SongMeta { Title = track.Title, Artist = track.MainArtist };
+            }
+            else
+            {
+                _meta[path] = new SongMeta { Title = info.Title, Artist = info.Artist };
+                _localSongs[SpotifyLibrary.MatchKey(info.Artist, info.Title)] = path;
+                newLocal = true;
+            }
             _pending.Enqueue(path);
         }
+        if (newLocal)
+            RemoveSpotifyDuplicates();
         ScheduleCategoryRefresh();
 
         if (_classifying)
@@ -692,7 +846,11 @@ public partial class MainWindow : Window
             "Launcherito", MessageBoxButton.OK, MessageBoxImage.Error);
 
         if (_playlist.Current is { } failed)
+        {
             _meta.Remove(failed);
+            foreach (var key in _localSongs.Where(kv => kv.Value == failed).Select(kv => kv.Key).ToList())
+                _localSongs.Remove(key);
+        }
         var next = _playlist.RemoveCurrent();
         SyncMosaic();
         ScheduleCategoryRefresh();
@@ -703,7 +861,7 @@ public partial class MainWindow : Window
         else
         {
             PlayerPanel.Visibility = Visibility.Collapsed;
-            LoadButton.Visibility = Visibility.Visible;
+            StartPanel.Visibility = Visibility.Visible;
         }
     }
 
@@ -812,6 +970,7 @@ public partial class MainWindow : Window
         _player.MediaFailed -= Player_MediaFailed;
         _player.Close();
         _categoryRefresh.Stop();
+        _spotifyStatusClear.Stop();
         _animator.Stop();
         _catalog.Save();
         base.OnClosed(e);

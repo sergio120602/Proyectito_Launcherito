@@ -2,7 +2,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.2.1-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.3-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -20,6 +20,7 @@
 - Anterior / siguiente, modo aleatorio (activado por defecto) u orden alfabético, y paso automático a la siguiente canción.
 - Las portadas del mosaico se cargan en segundo plano solo cuando se ven, para que una biblioteca grande no dispare la memoria.
 - **Pestañas Artistas y Géneros**: las canciones se clasifican automáticamente con la [API de Deezer](https://developers.deezer.com/api) (gratuita, sin clave). Cada artista tiene su foto y cada género su imagen; al pulsar uno se ven sus canciones. Lo consultado se guarda en `%LOCALAPPDATA%\Launcherito\catalogo.json`, así que solo se pregunta una vez por canción.
+- **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás suenan con el fragmento de 30 s de Spotify. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
 
 ## 🚀 Características previstas
 
@@ -59,11 +60,12 @@
 | **1.1.3** | Animaciones más lentas: se ve cómo se forma el mosaico desde la canción que suena ✅ |
 | **1.2** | Pestañas Canciones / Artistas / Géneros: clasificación con la API de Deezer y fotos de cada artista y género ✅ |
 | **1.2.1** | La ventana no se congela al cambiar de canción y menos memoria en las vistas que no se ven ✅ |
-| 1.3 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
-| 1.4 | Sistema de temas y personalización |
-| 1.5 | Visualizador y color dinámico |
-| 1.6 | Ecualizador, atajos globales y mini‑reproductor |
-| 1.7 | Letras sincronizadas y estadísticas |
+| **1.3** | Listas y álbumes de Spotify desde un enlace, con sus portadas y fragmentos; las que tienes en .mp3 suenan enteras ✅ |
+| 1.4 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
+| 1.5 | Sistema de temas y personalización |
+| 1.6 | Visualizador y color dinámico |
+| 1.7 | Ecualizador, atajos globales y mini‑reproductor |
+| 1.8 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 

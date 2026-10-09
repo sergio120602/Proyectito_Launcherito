@@ -3,7 +3,7 @@ using System.Windows.Media.Imaging;
 
 namespace Launcherito;
 
-/// <summary>Título, artista y carátula de una canción, leídos de sus etiquetas ID3.</summary>
+/// <summary>Título, artista y carátula de una canción, leídos de sus etiquetas ID3 o de Spotify.</summary>
 public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
 {
     /// <summary>Artista que se muestra cuando la canción no lo trae en sus etiquetas.</summary>
@@ -23,6 +23,9 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
     /// <param name="previewSize">Si es mayor que 0, ancho de una segunda copia diminuta, sacada de los mismos datos.</param>
     public static SongInfo Read(string path, int maxCoverSize, int previewSize = 0)
     {
+        if (SpotifyLibrary.TryGet(path, out var track))
+            return ReadSpotify(track, maxCoverSize, previewSize);
+
         string title = Path.GetFileNameWithoutExtension(path);
         string artist = UnknownArtist;
         byte[]? coverData = null;
@@ -53,6 +56,24 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
         }
 
         return new SongInfo(title, artist, coverData is null ? null : LoadImage(coverData, maxCoverSize))
+        {
+            Preview = coverData is null || previewSize <= 0 ? null : LoadImage(coverData, previewSize),
+        };
+    }
+
+    /// <summary>Título que se puede mostrar antes de leer las etiquetas: el de Spotify o el nombre del archivo.</summary>
+    public static string FallbackTitle(string path) =>
+        SpotifyLibrary.TryGet(path, out var track) ? track.Title : Path.GetFileNameWithoutExtension(path);
+
+    /// <summary>
+    /// Canción de Spotify: los datos ya se conocen y la portada se descarga (o sale de la caché). El
+    /// artista lleva la marca del fragmento para que se vea en el mosaico y en el reproductor.
+    /// </summary>
+    private static SongInfo ReadSpotify(SpotifyTrack track, int maxCoverSize, int previewSize)
+    {
+        byte[]? coverData = maxCoverSize > 0 ? SpotifyLibrary.GetCoverData(track) : null;
+        return new SongInfo(track.Title, $"{track.Artists}  ·  fragmento de Spotify (30 s)",
+            coverData is null ? null : LoadImage(coverData, maxCoverSize))
         {
             Preview = coverData is null || previewSize <= 0 ? null : LoadImage(coverData, previewSize),
         };

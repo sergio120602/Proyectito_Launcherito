@@ -6,6 +6,18 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.3] - 2026-10-09
+
+### Añadido
+- **Listas de Spotify**: botón verde «Añadir lista de Spotify» en la pantalla inicial y «＋ Lista de Spotify» en la barra superior. Se pega el enlace de una lista pública o de un álbum (también `intl-es/…?si=…` y `spotify:playlist:…`); si ya está copiado, aparece pegado solo.
+- Las canciones entran en el mosaico con su animación, con la portada de Spotify (640 px, guardada en `%LOCALAPPDATA%\Launcherito\spotify`), y se clasifican en Artistas y Géneros con Deezer como las demás.
+- Sin cuenta ni Premium (`SpotifyLibrary`): la API oficial de Spotify exige desde febrero de 2026 que el dueño de la app tenga Premium, así que se lee la página que Spotify ofrece para insertar listas en otras webs y su servicio oEmbed para las portadas.
+- Spotify no da el audio completo: si la canción ya está cargada en `.mp3` no se repite y suena entera; si no, suena el fragmento de 30 s de Spotify, marcado como «fragmento de Spotify (30 s)». Si se añade el `.mp3` después, sustituye a la de Spotify. Se reconocen aunque cambien tildes, mayúsculas o añadidos como «(feat. X)».
+- Resumen al añadir una lista: canciones añadidas, las que ya tenías en `.mp3`, las repetidas y las que no tienen fragmento. Mensajes claros si el enlace no es de Spotify, la lista es privada o no hay conexión.
+
+### Limitaciones
+- Solo listas públicas y álbumes, y como mucho sus 100 primeras canciones (lo que da la página de inserción de Spotify).
+
 ## [1.2.1] - 2026-10-09
 
 ### Cambiado
