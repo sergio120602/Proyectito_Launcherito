@@ -12,6 +12,7 @@ public partial class MainWindow : Window
 {
     private const string PlayIcon = "";
     private const string PauseIcon = "";
+    private const int CoverDecodeSize = 640;
 
     private readonly MediaPlayer _player = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
@@ -24,10 +25,13 @@ public partial class MainWindow : Window
 
         _player.MediaOpened += Player_MediaOpened;
         _player.MediaEnded += Player_MediaEnded;
-        _player.MediaFailed += (_, e) =>
-            MessageBox.Show(this, $"No se pudo reproducir el archivo.\n{e.ErrorException.Message}",
-                "Launcherito", MessageBoxButton.OK, MessageBoxImage.Error);
-        _timer.Tick += (_, _) => UpdateProgress();
+        _player.MediaFailed += Player_MediaFailed;
+        _timer.Tick += Timer_Tick;
+
+        // Permite abrir una canción pasada como argumento (p. ej. "Abrir con → Launcherito").
+        var args = Environment.GetCommandLineArgs();
+        if (args.Length > 1)
+            Loaded += (_, _) => TryLoadSong(args[1]);
     }
 
     private void LoadButton_Click(object sender, RoutedEventArgs e)
@@ -37,17 +41,21 @@ public partial class MainWindow : Window
             Title = "Selecciona una canción",
             Filter = "Archivos MP3 (*.mp3)|*.mp3",
         };
-        if (dialog.ShowDialog(this) != true)
-            return;
+        if (dialog.ShowDialog(this) == true)
+            TryLoadSong(dialog.FileName);
+    }
 
-        if (!string.Equals(Path.GetExtension(dialog.FileName), ".mp3", StringComparison.OrdinalIgnoreCase))
+    private void TryLoadSong(string path)
+    {
+        if (!File.Exists(path) ||
+            !string.Equals(Path.GetExtension(path), ".mp3", StringComparison.OrdinalIgnoreCase))
         {
             MessageBox.Show(this, "Solo se admiten archivos .mp3.", "Launcherito",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        LoadSong(dialog.FileName);
+        LoadSong(path);
     }
 
     private void LoadSong(string path)
@@ -69,22 +77,29 @@ public partial class MainWindow : Window
     {
         string title = Path.GetFileNameWithoutExtension(path);
         string artist = "Artista desconocido";
-        BitmapImage? cover = null;
+        byte[]? coverData = null;
 
         try
         {
-            using var file = TagLib.File.Create(path);
-            if (!string.IsNullOrWhiteSpace(file.Tag.Title))
-                title = file.Tag.Title;
-            if (!string.IsNullOrWhiteSpace(file.Tag.FirstPerformer))
-                artist = file.Tag.FirstPerformer;
-            if (file.Tag.Pictures.Length > 0)
-                cover = LoadImage(file.Tag.Pictures[0].Data.Data);
+            // El bloque using equivale al try-with-resources de Java: el archivo se cierra al salir
+            // del bloque, antes de decodificar la carátula. ReadStyle.None evita analizar todo el
+            // audio para calcular su duración, que aquí ya obtiene el reproductor.
+            using (var file = TagLib.File.Create(path, TagLib.ReadStyle.None))
+            {
+                if (!string.IsNullOrWhiteSpace(file.Tag.Title))
+                    title = file.Tag.Title;
+                if (!string.IsNullOrWhiteSpace(file.Tag.FirstPerformer))
+                    artist = file.Tag.FirstPerformer;
+                if (file.Tag.Pictures.Length > 0)
+                    coverData = file.Tag.Pictures[0].Data.Data;
+            }
         }
         catch (Exception)
         {
             // Etiquetas ilegibles: se usa el nombre del archivo y la carátula por defecto.
         }
+
+        var cover = coverData is null ? null : LoadImage(coverData);
 
         TitleText.Text = title;
         ArtistText.Text = artist;
@@ -99,7 +114,14 @@ public partial class MainWindow : Window
             var image = new BitmapImage();
             using var stream = new MemoryStream(data);
             image.BeginInit();
+            // OnLoad copia los píxeles al crearla, así el stream puede liberarse al salir del método.
             image.CacheOption = BitmapCacheOption.OnLoad;
+            // Limita la resolución decodificada: una carátula de 3000x3000 ocuparía ~36 MB en memoria.
+            // DelayCreation lee solo la cabecera para conocer el tamaño sin decodificar la imagen.
+            int width = BitmapFrame.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None).PixelWidth;
+            if (width > CoverDecodeSize)
+                image.DecodePixelWidth = CoverDecodeSize;
+            stream.Position = 0;
             image.StreamSource = stream;
             image.EndInit();
             image.Freeze();
@@ -154,11 +176,36 @@ public partial class MainWindow : Window
         TotalTimeText.Text = Format(duration);
     }
 
+    private void Player_MediaFailed(object? sender, ExceptionEventArgs e)
+    {
+        // Libera el archivo y detiene el temporizador, que si no seguiría activo sin nada que reproducir.
+        Stop();
+        PlayerPanel.Visibility = Visibility.Collapsed;
+        LoadButton.Visibility = Visibility.Visible;
+        MessageBox.Show(this, $"No se pudo reproducir el archivo.\n{e.ErrorException.Message}",
+            "Launcherito", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
     private void Player_MediaEnded(object? sender, EventArgs e)
     {
         Pause();
         _player.Position = TimeSpan.Zero;
         UpdateProgress();
+    }
+
+    private void Timer_Tick(object? sender, EventArgs e) => UpdateProgress();
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        // Con la ventana minimizada no hace falta refrescar la barra de progreso.
+        if (WindowState == WindowState.Minimized)
+            _timer.Stop();
+        else if (_isPlaying)
+        {
+            UpdateProgress();
+            _timer.Start();
+        }
+        base.OnStateChanged(e);
     }
 
     private void UpdateProgress()
@@ -183,7 +230,13 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        // MediaPlayer y DispatcherTimer no implementan IDisposable (no admiten using):
+        // se liberan explícitamente parándolos, cerrando el audio y soltando los eventos.
         _timer.Stop();
+        _timer.Tick -= Timer_Tick;
+        _player.MediaOpened -= Player_MediaOpened;
+        _player.MediaEnded -= Player_MediaEnded;
+        _player.MediaFailed -= Player_MediaFailed;
         _player.Close();
         base.OnClosed(e);
     }

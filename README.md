@@ -2,7 +2,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-0.2-blueviolet)
+![Versión](https://img.shields.io/badge/versión-0.2.1-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -54,8 +54,9 @@
 ## 📦 Instalación
 
 ### Opción 1: descargar el ejecutable
-1. Ve a [Releases](https://github.com/sergio120602/Proyectito_Launcherito/releases) y descarga `Launcherito.exe` de la última versión.
-2. Ábrelo. No necesita instalación ni tener .NET instalado.
+1. Ve a [Releases](https://github.com/sergio120602/Proyectito_Launcherito/releases) y descarga el `.zip` de la última versión.
+2. Descomprímelo y abre `Launcherito.exe`. No necesita instalación ni tener .NET instalado.
+3. También puedes abrir un `.mp3` directamente con *clic derecho → Abrir con → Launcherito.exe*.
 
 ### Opción 2: compilar desde el código
 Requisitos: [.NET 10 SDK](https://dotnet.microsoft.com/download) en Windows.
@@ -73,7 +74,7 @@ dotnet publish -c Release -o ../../publish   # generar publish/Launcherito.exe
 
 ## 🔖 Control de versiones
 
-El proyecto sigue un esquema de versiones `MAYOR.MENOR`:
+El proyecto sigue un esquema de versiones `MAYOR.MENOR.PARCHE` (el parche se usa para correcciones y optimizaciones):
 
 - La versión actual se guarda en el archivo [`VERSION`](VERSION).
 - Todos los cambios de cada versión se documentan en [`CHANGELOG.md`](CHANGELOG.md).

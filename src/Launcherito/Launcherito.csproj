@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Product>Launcherito</Product>
     <AssemblyTitle>Launcherito</AssemblyTitle>
 
@@ -15,7 +15,8 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Sin compresión: el .exe pesa más en disco, pero no descomprime .NET en la RAM al arrancar (~90 MB menos) -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -6,6 +6,21 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.2.1] - 2026-10-09
+
+### Añadido
+- Se puede abrir un `.mp3` pasado como argumento (*Abrir con → Launcherito*).
+
+### Mejorado
+- Unos 90 MB menos de RAM: el `.exe` ya no se comprime, así que no descomprime .NET en memoria al arrancar.
+- El archivo `.mp3` se lee con un bloque `using` (equivalente al *try-with-resources* de Java) que lo cierra antes de procesar la carátula, y sin analizar todo el audio (`ReadStyle.None`).
+- Las carátulas muy grandes se reducen a 640 px al cargarlas para no ocupar decenas de MB.
+- La barra de progreso deja de actualizarse mientras la ventana está minimizada.
+- Al cerrar la ventana se paran el temporizador y el reproductor y se sueltan sus eventos.
+
+### Corregido
+- Si un archivo no se podía reproducir, el temporizador seguía funcionando y el archivo quedaba abierto; ahora se libera y se vuelve a la pantalla inicial.
+
 ## [0.2] - 2026-10-09
 
 ### Añadido
