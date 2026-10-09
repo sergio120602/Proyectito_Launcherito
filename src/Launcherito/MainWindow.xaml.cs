@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -16,8 +17,10 @@ public partial class MainWindow : Window
 
     private readonly MediaPlayer _player = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly Playlist _playlist = new();   // el modo aleatorio empieza activado (Playlist.Shuffle = true)
     private bool _isPlaying;
     private bool _isSeeking;
+    private int _shownSecond;   // segundo que muestra CurrentTimeText, para no reescribirlo sin necesidad
 
     public MainWindow()
     {
@@ -27,43 +30,67 @@ public partial class MainWindow : Window
         _player.MediaEnded += Player_MediaEnded;
         _player.MediaFailed += Player_MediaFailed;
         _timer.Tick += Timer_Tick;
+        // handledEventsToo: al pulsar en la pista, el Slider marca el clic como gestionado
+        // (IsMoveToPointEnabled) y un manejador normal declarado en XAML no llegaría a ejecutarse.
+        SeekSlider.AddHandler(PreviewMouseLeftButtonDownEvent,
+            new MouseButtonEventHandler(SeekSlider_PreviewMouseLeftButtonDown), handledEventsToo: true);
+        UpdateShuffleButton();
 
-        // Permite abrir una canción pasada como argumento (p. ej. "Abrir con → Launcherito").
+        // Permite abrir canciones pasadas como argumento (p. ej. "Abrir con → Launcherito").
         var args = Environment.GetCommandLineArgs();
         if (args.Length > 1)
-            Loaded += (_, _) => TryLoadSong(args[1]);
+            Loaded += (_, _) => AddSongs(args.Skip(1));
     }
 
     private void LoadButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Selecciona una canción",
+            Title = "Selecciona una o varias canciones",
             Filter = "Archivos MP3 (*.mp3)|*.mp3",
+            Multiselect = true,
         };
         if (dialog.ShowDialog(this) == true)
-            TryLoadSong(dialog.FileName);
+            AddSongs(dialog.FileNames);
     }
 
-    private void TryLoadSong(string path)
+    private void AddSongs(IEnumerable<string> paths)
     {
-        if (!File.Exists(path) ||
-            !string.Equals(Path.GetExtension(path), ".mp3", StringComparison.OrdinalIgnoreCase))
+        var valid = new List<string>();
+        int rejected = 0;
+        foreach (var path in paths)
         {
-            MessageBox.Show(this, "Solo se admiten archivos .mp3.", "Launcherito",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            if (File.Exists(path) &&
+                string.Equals(Path.GetExtension(path), ".mp3", StringComparison.OrdinalIgnoreCase))
+                valid.Add(path);
+            else
+                rejected++;
         }
 
-        LoadSong(path);
+        if (rejected > 0)
+        {
+            MessageBox.Show(this, $"Solo se admiten archivos .mp3. Se han ignorado {rejected} archivo(s).",
+                "Launcherito", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        bool wasEmpty = _playlist.Count == 0;
+        _playlist.Add(valid);
+
+        // Si ya estaba sonando algo, las nuevas canciones se añaden a la lista sin interrumpirla.
+        if (wasEmpty && _playlist.Current is { } first)
+            PlaySong(first);
+        else
+            UpdatePosition();
     }
 
-    private void LoadSong(string path)
+    private void PlaySong(string path)
     {
         Stop();
         ShowMetadata(path);
+        UpdatePosition();
 
         SeekSlider.Value = 0;
+        _shownSecond = 0;
         CurrentTimeText.Text = "0:00";
         TotalTimeText.Text = "0:00";
 
@@ -72,6 +99,38 @@ public partial class MainWindow : Window
         PlayerPanel.Visibility = Visibility.Visible;
         Play();
     }
+
+    private void PreviousButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_playlist.Previous() is { } song)
+            PlaySong(song);
+    }
+
+    private void NextButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_playlist.Next() is { } song)
+            PlaySong(song);
+    }
+
+    private void ShuffleButton_Click(object sender, RoutedEventArgs e)
+    {
+        _playlist.Shuffle = !_playlist.Shuffle;
+        UpdateShuffleButton();
+        UpdatePosition();
+    }
+
+    private void UpdateShuffleButton()
+    {
+        ShuffleButton.Foreground = _playlist.Shuffle
+            ? (Brush)FindResource("Accent")
+            : (Brush)FindResource("Muted");
+        ShuffleButton.ToolTip = _playlist.Shuffle
+            ? "Aleatorio: activado"
+            : "Aleatorio: desactivado (orden alfabético)";
+    }
+
+    private void UpdatePosition() =>
+        PositionText.Text = _playlist.Count == 0 ? "" : $"{_playlist.Position + 1} / {_playlist.Count}";
 
     private void ShowMetadata(string path)
     {
@@ -180,14 +239,29 @@ public partial class MainWindow : Window
     {
         // Libera el archivo y detiene el temporizador, que si no seguiría activo sin nada que reproducir.
         Stop();
-        PlayerPanel.Visibility = Visibility.Collapsed;
-        LoadButton.Visibility = Visibility.Visible;
-        MessageBox.Show(this, $"No se pudo reproducir el archivo.\n{e.ErrorException.Message}",
+        MessageBox.Show(this, $"No se pudo reproducir «{TitleText.Text}» y se ha quitado de la lista.\n{e.ErrorException.Message}",
             "Launcherito", MessageBoxButton.OK, MessageBoxImage.Error);
+
+        if (_playlist.RemoveCurrent() is { } next)
+        {
+            PlaySong(next);
+        }
+        else
+        {
+            PlayerPanel.Visibility = Visibility.Collapsed;
+            LoadButton.Visibility = Visibility.Visible;
+        }
     }
 
     private void Player_MediaEnded(object? sender, EventArgs e)
     {
+        // Con varias canciones pasa a la siguiente (al acabar la lista vuelve a empezar).
+        if (_playlist.Count > 1 && _playlist.Next() is { } next)
+        {
+            PlaySong(next);
+            return;
+        }
+
         Pause();
         _player.Position = TimeSpan.Zero;
         UpdateProgress();
@@ -214,16 +288,59 @@ public partial class MainWindow : Window
             SeekSlider.Value = _player.Position.TotalSeconds;
     }
 
-    private void SeekSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _isSeeking = true;
-
-    private void SeekSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void SeekSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        _player.Position = TimeSpan.FromSeconds(SeekSlider.Value);
-        _isSeeking = false;
+        _isSeeking = true;
+
+        // Al pulsar en la pista (fuera del círculo) el Slider ya ha saltado a ese punto; además se
+        // empieza a arrastrar el círculo para poder seguir moviéndolo sin soltar el botón.
+        if (SeekSlider.Template.FindName("PART_Track", SeekSlider) is Track { Thumb: { IsMouseOver: false } thumb })
+        {
+            // Coloca el círculo en su nueva posición antes de arrastrarlo; si no, el primer
+            // movimiento se calcularía desde la posición antigua y la barra daría un salto.
+            SeekSlider.UpdateLayout();
+            thumb.RaiseEvent(new MouseButtonEventArgs(e.MouseDevice, e.Timestamp, MouseButton.Left)
+            {
+                RoutedEvent = MouseLeftButtonDownEvent,
+                Source = thumb,
+            });
+        }
     }
 
-    private void SeekSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) =>
-        CurrentTimeText.Text = Format(TimeSpan.FromSeconds(e.NewValue));
+    private void SeekSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => EndSeek();
+
+    // Por si se pierde el ratón a mitad de arrastre (p. ej. Alt+Tab): sin esto la barra se quedaría congelada.
+    private void SeekSlider_LostMouseCapture(object sender, MouseEventArgs e) => EndSeek();
+
+    private void EndSeek()
+    {
+        // Al soltar llegan tanto el MouseUp como el LostMouseCapture: solo se salta una vez.
+        if (!_isSeeking)
+            return;
+        _isSeeking = false;
+
+        // El reproductor solo salta al soltar, nunca durante el arrastre.
+        _player.Position = TimeSpan.FromSeconds(SeekSlider.Value);
+
+        // Reinicia el temporizador para que el siguiente tick llegue cuando el salto ya está hecho
+        // y la barra no rebote un instante a la posición antigua.
+        if (_timer.IsEnabled)
+        {
+            _timer.Stop();
+            _timer.Start();
+        }
+    }
+
+    private void SeekSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        // El valor cambia con cada tick y con cada píxel arrastrado; el texto solo se rehace
+        // (creando una cadena nueva) cuando cambia el segundo que se muestra.
+        int second = (int)e.NewValue;
+        if (second == _shownSecond)
+            return;
+        _shownSecond = second;
+        CurrentTimeText.Text = Format(TimeSpan.FromSeconds(second));
+    }
 
     private static string Format(TimeSpan time) =>
         time.TotalHours >= 1 ? time.ToString(@"h\:mm\:ss") : time.ToString(@"m\:ss");

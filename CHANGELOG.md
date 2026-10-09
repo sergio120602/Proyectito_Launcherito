@@ -6,6 +6,30 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [0.3] - 2026-10-09
+
+### Añadido
+- Carga de varias canciones a la vez (selección múltiple en «Cargar Archivos» y en *Abrir con*).
+- Lista de reproducción sin límite de canciones, ignorando las repetidas. «Añadir canciones» las suma sin cortar la que suena.
+- Botones ⏮ y ⏭ para ir a la canción anterior o siguiente. Al llegar al final, la lista vuelve a empezar.
+- Botón de modo aleatorio, **activado por defecto** (`Playlist.Shuffle = true`). Desactivado, las canciones pasan en orden alfabético.
+- Al acabar una canción empieza automáticamente la siguiente.
+- Indicador de posición en la lista (p. ej. `3 / 25`).
+
+### Mejorado
+- Barra deslizante: toda la franja (28 px) responde al clic, no solo la línea de 5 px.
+- Al pulsar en cualquier punto de la barra salta ahí y se puede seguir arrastrando sin soltar.
+- La canción cambia de posición una sola vez, al soltar, y la barra ya no rebota a la posición antigua.
+- El tiempo actual solo se reescribe cuando cambia el segundo mostrado.
+
+### Cambiado
+- Si una canción no se puede reproducir, se quita de la lista y se pasa a la siguiente.
+
+### Corregido
+- El clic en la pista de la barra no siempre se detectaba como inicio de arrastre.
+- Si se perdía el ratón a mitad de arrastre (p. ej. Alt+Tab), la barra se quedaba congelada.
+- Las flechas del teclado movían la barra sin cambiar la posición de la canción.
+
 ## [0.2.1] - 2026-10-09
 
 ### Añadido

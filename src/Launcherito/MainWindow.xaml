@@ -62,6 +62,32 @@
             </Setter>
         </Style>
 
+        <!-- Botón de icono (anterior, siguiente, aleatorio) -->
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="52"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Ellipse x:Name="Bg" Fill="{TemplateBinding Background}"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Fill" Value="#222222"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Botón de texto discreto -->
         <Style x:Key="LinkButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Muted}"/>
@@ -94,10 +120,13 @@
         <Style x:Key="SeekBar" TargetType="Slider">
             <Setter Property="IsMoveToPointEnabled" Value="True"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <!-- Sin foco de teclado: las flechas movían la barra sin cambiar la posición de la canción. -->
+            <Setter Property="Focusable" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
-                        <Grid Height="20">
+                        <!-- El fondo transparente hace que toda la franja responda al clic, no solo la línea de 5 px. -->
+                        <Grid Height="28" Background="Transparent">
                             <Border Height="5" CornerRadius="3" Background="{StaticResource Track}" VerticalAlignment="Center"/>
                             <Track x:Name="PART_Track" VerticalAlignment="Center">
                                 <Track.DecreaseRepeatButton>
@@ -131,7 +160,7 @@
 
     <Grid>
         <!-- Pantalla inicial -->
-        <Button x:Name="LoadButton" Content="Cargar Archivo" Style="{StaticResource BigButton}"
+        <Button x:Name="LoadButton" Content="Cargar Archivos" Style="{StaticResource BigButton}"
                 HorizontalAlignment="Center" VerticalAlignment="Center" Click="LoadButton_Click"/>
 
         <!-- Reproductor -->
@@ -168,8 +197,8 @@
 
             <StackPanel Grid.Row="2" Margin="0,22,0,0">
                 <Slider x:Name="SeekSlider" Style="{StaticResource SeekBar}" Minimum="0" Maximum="1"
-                        PreviewMouseLeftButtonDown="SeekSlider_PreviewMouseLeftButtonDown"
                         PreviewMouseLeftButtonUp="SeekSlider_PreviewMouseLeftButtonUp"
+                        LostMouseCapture="SeekSlider_LostMouseCapture"
                         ValueChanged="SeekSlider_ValueChanged"/>
                 <Grid Margin="0,4,0,0">
                     <TextBlock x:Name="CurrentTimeText" Text="0:00" FontSize="12" Foreground="{StaticResource Muted}"/>
@@ -178,10 +207,28 @@
                 </Grid>
             </StackPanel>
 
-            <Button x:Name="PlayPauseButton" Grid.Row="3" Style="{StaticResource RoundButton}" Margin="0,16,0,0"
-                    Content="&#xE768;" ToolTip="Reproducir / Pausar" Click="PlayPauseButton_Click"/>
+            <!-- Controles: aleatorio | anterior | reproducir/pausar | siguiente | posición en la lista -->
+            <Grid Grid.Row="3" Margin="0,16,0,0" HorizontalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="64"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="64"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="ShuffleButton" Grid.Column="0" Style="{StaticResource IconButton}" FontSize="18"
+                        Content="&#xE8B1;" Click="ShuffleButton_Click"/>
+                <Button x:Name="PreviousButton" Grid.Column="1" Style="{StaticResource IconButton}" Margin="0,0,12,0"
+                        Content="&#xE892;" ToolTip="Canción anterior" Click="PreviousButton_Click"/>
+                <Button x:Name="PlayPauseButton" Grid.Column="2" Style="{StaticResource RoundButton}"
+                        Content="&#xE768;" ToolTip="Reproducir / Pausar" Click="PlayPauseButton_Click"/>
+                <Button x:Name="NextButton" Grid.Column="3" Style="{StaticResource IconButton}" Margin="12,0,0,0"
+                        Content="&#xE893;" ToolTip="Canción siguiente" Click="NextButton_Click"/>
+                <TextBlock x:Name="PositionText" Grid.Column="4" FontSize="12" Foreground="{StaticResource Muted}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Posición en la lista"/>
+            </Grid>
 
-            <Button Grid.Row="4" Style="{StaticResource LinkButton}" Content="Cargar otro archivo"
+            <Button Grid.Row="4" Style="{StaticResource LinkButton}" Content="Añadir canciones"
                     HorizontalAlignment="Center" Margin="0,20,0,0" Click="LoadButton_Click"/>
         </Grid>
     </Grid>
