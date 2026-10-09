@@ -11,7 +11,10 @@ namespace Launcherito;
 /// </summary>
 public sealed class MosaicTile : Border
 {
-    private const int CoverSize = 400;
+    // Carátula a propósito diminuta: al estirarla hasta la tesela queda muy desenfocada. Se lee,
+    // decodifica y guarda ~150 veces menos píxeles que a 400 px, y no hace falta un BlurEffect, que
+    // obligaría a recalcular el desenfoque en cada fotograma (sobre todo durante las animaciones).
+    private const int CoverSize = 32;
     private const double Radius = 14;
 
     // Como mucho 4 lecturas de disco a la vez al desplazarse rápido por el mosaico.
@@ -104,7 +107,11 @@ public sealed class MosaicTile : Border
 
         if (version != _coverVersion || info.Cover is null)
             return;
-        Background = new ImageBrush(info.Cover) { Stretch = Stretch.UniformToFill };
+        var cover = new ImageBrush(info.Cover) { Stretch = Stretch.UniformToFill };
+        // Escalado lineal: suaviza los píxeles al estirarla, que es lo que da el desenfoque.
+        RenderOptions.SetBitmapScalingMode(cover, BitmapScalingMode.Linear);
+        cover.Freeze();
+        Background = cover;
         _placeholder.Visibility = Visibility.Collapsed;
     }
 

@@ -25,10 +25,12 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, MosaicTile> _tiles = new(StringComparer.OrdinalIgnoreCase);
     private MosaicTile? _activeTile;
     private bool _mosaicView;
+    private readonly TileAnimator _animator;
 
     public MainWindow()
     {
         InitializeComponent();
+        _animator = new TileAnimator(MosaicView, Mosaic);
 
         _player.MediaOpened += Player_MediaOpened;
         _player.MediaEnded += Player_MediaEnded;
@@ -184,6 +186,8 @@ public partial class MainWindow : Window
     {
         var songs = _playlist.Songs;
         var present = new HashSet<string>(songs, StringComparer.OrdinalIgnoreCase);
+        var oldSlots = _animator.CaptureSlots();   // para que las que se mueven no salten de sitio
+        var added = new List<MosaicTile>();
         foreach (var gone in _tiles.Keys.Where(path => !present.Contains(path)).ToList())
         {
             var removed = _tiles[gone];
@@ -207,6 +211,7 @@ public partial class MainWindow : Window
                 tile = new MosaicTile(songs[i]);
                 tile.Selected += Tile_Selected;
                 _tiles.Add(songs[i], tile);
+                added.Add(tile);
             }
             MosaicPanel.SetSpan(tile, SpanFor(i, tile));
             Mosaic.Children.Add(tile);
@@ -214,6 +219,15 @@ public partial class MainWindow : Window
 
         SongCountText.Text = songs.Count == 1 ? "1 canción" : $"{songs.Count} canciones";
         Dispatcher.BeginInvoke(UpdateVisibleCovers, DispatcherPriority.Loaded);
+        // Entrada de las nuevas y desplazamiento de las demás en cuanto el mosaico se recoloque, antes
+        // de pintarlo: con BeginInvoke se llegaría a ver un fotograma con las teselas ya en su sitio.
+        EventHandler? onLayout = null;
+        onLayout = (_, _) =>
+        {
+            Mosaic.LayoutUpdated -= onLayout;
+            _animator.Animate(added, oldSlots, _isSeeking ? _activeTile : null);
+        };
+        Mosaic.LayoutUpdated += onLayout;
     }
 
     /// <summary>La canción que suena ocupa 2x2; del resto, una de cada seis también es grande.</summary>
@@ -409,6 +423,8 @@ public partial class MainWindow : Window
     private void SeekSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _isSeeking = true;
+        // Una portada animada movería la barra bajo el ratón: se deja quieta antes de arrastrar.
+        _animator.Finish(_activeTile);
 
         // Al pulsar en la pista (fuera del círculo) el Slider ya ha saltado a ese punto; además se
         // empieza a arrastrar el círculo para poder seguir moviéndolo sin soltar el botón.

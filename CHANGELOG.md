@@ -6,6 +6,17 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.1] - 2026-10-09
+
+### Añadido
+- Animaciones de entrada aleatorias para cada canción que entra en el mosaico: gira, crece, choca (las demás se apartan a trompicones), cae botando, derrapa, se da la vuelta como una carta o parpadea (`TileAnimator`).
+- Las portadas que cambian de sitio se desplazan en lugar de saltar.
+
+### Mejorado
+- Carátulas del mosaico muy desenfocadas: se decodifican a 32 px y se estiran con escalado lineal, sin `BlurEffect`. Gastan mucha menos memoria y CPU (unos 40 MB menos con 250 canciones).
+- Lectura de etiquetas ID3 con un buffer de 64 KB (`BufferedStream`): menos lecturas pequeñas al disco al cargar las carátulas del mosaico.
+- Al empezar a arrastrar la barra, la portada activa termina su animación para que la barra no se mueva bajo el ratón.
+
 ## [1.0] - 2026-10-09
 
 Cambio de versión mayor: nueva interfaz.

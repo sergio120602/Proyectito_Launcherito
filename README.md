@@ -2,7 +2,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.0-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.1-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -52,12 +52,13 @@
 | **0.2** | Aplicación base: ventana, carga de un .mp3, carátula y reproductor sencillo ✅ |
 | **0.3** | Carga de varias canciones, lista de reproducción, anterior/siguiente y modo aleatorio ✅ |
 | **1.0** | 🎉 Nueva interfaz: vista mosaico con controles dentro de la portada y cambio de vista ✅ |
-| 1.1 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
-| 1.2 | Conexión a una API para clasificar las canciones por género y artista |
-| 1.3 | Sistema de temas y personalización |
-| 1.4 | Visualizador, color dinámico y animaciones |
-| 1.5 | Ecualizador, atajos globales y mini‑reproductor |
-| 1.6 | Letras sincronizadas y estadísticas |
+| **1.1** | Animaciones de entrada en el mosaico y portadas desenfocadas más ligeras ✅ |
+| 1.2 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
+| 1.3 | Conexión a una API para clasificar las canciones por género y artista |
+| 1.4 | Sistema de temas y personalización |
+| 1.5 | Visualizador y color dinámico |
+| 1.6 | Ecualizador, atajos globales y mini‑reproductor |
+| 1.7 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 

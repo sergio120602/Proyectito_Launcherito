@@ -6,6 +6,10 @@ namespace Launcherito;
 /// <summary>Título, artista y carátula de una canción, leídos de sus etiquetas ID3.</summary>
 public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
 {
+    // TagLib lee las etiquetas en trozos de 1 KB saltando por el archivo. Con un buffer de 64 KB
+    // la cabecera ID3 (y casi siempre la carátula) se trae del disco en una sola lectura.
+    private const int ReadBufferSize = 64 * 1024;
+
     /// <summary>
     /// Lee las etiquetas de un .mp3. Se puede llamar desde cualquier hilo: la carátula se devuelve congelada.
     /// </summary>
@@ -21,7 +25,12 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
             // El bloque using equivale al try-with-resources de Java: el archivo se cierra al salir
             // del bloque, antes de decodificar la carátula. ReadStyle.None evita analizar todo el
             // audio para calcular su duración, que aquí ya obtiene el reproductor.
-            using (var file = TagLib.File.Create(path, TagLib.ReadStyle.None))
+            // bufferSize 0 desactiva el buffer propio de FileStream para que no haya dos buffers seguidos.
+            using (var stream = new BufferedStream(
+                       new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 0),
+                       ReadBufferSize))
+            using (var file = TagLib.File.Create(
+                       new ReadOnlyAbstraction(path, stream), TagLib.ReadStyle.None))
             {
                 if (!string.IsNullOrWhiteSpace(file.Tag.Title))
                     title = file.Tag.Title;
@@ -37,6 +46,15 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
         }
 
         return new SongInfo(title, artist, coverData is null ? null : LoadImage(coverData, maxCoverSize));
+    }
+
+    /// <summary>Entrega a TagLib un stream de solo lectura ya abierto; el stream lo cierra quien lo creó.</summary>
+    private sealed class ReadOnlyAbstraction(string name, Stream stream) : TagLib.File.IFileAbstraction
+    {
+        public string Name => name;
+        public Stream ReadStream => stream;
+        public Stream WriteStream => throw new NotSupportedException("Launcherito no modifica las etiquetas.");
+        public void CloseStream(Stream s) { }
     }
 
     private static BitmapImage? LoadImage(byte[] data, int maxSize)
