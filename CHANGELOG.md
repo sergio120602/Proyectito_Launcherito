@@ -6,6 +6,12 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.1.2] - 2026-10-09
+
+### Añadido
+- El título de la ventana muestra la versión del programa (p. ej. «Launcherito 1.1.2»).
+- El ejecutable se deja también en la raíz de la carpeta del proyecto con la versión en el nombre (`Launcherito v1.1.2.exe`).
+
 ## [1.1.1] - 2026-10-09
 
 ### Cambiado

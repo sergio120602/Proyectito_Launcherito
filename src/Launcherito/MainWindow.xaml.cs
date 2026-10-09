@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -30,6 +31,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // La versión sale de <Version> en el .csproj, así el título siempre coincide con el .exe.
+        Title = $"Launcherito {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _animator = new TileAnimator(MosaicView, Mosaic);
 
         _player.MediaOpened += Player_MediaOpened;
