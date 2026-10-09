@@ -14,6 +14,12 @@ public sealed class CategoryCard : Button
 {
     private const int PictureDecodeSize = 240;
 
+    // Compartidos por todas las tarjetas: congelados, no hace falta una copia por tarjeta.
+    private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
+    private static readonly Brush EmptyFill = Frozen(new SolidColorBrush(Color.FromRgb(0x15, 0x15, 0x15)));
+    private static readonly Brush PlaceholderBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)));
+    private static readonly Brush CountBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A)));
+
     private readonly bool _round;
     private readonly Shape _picture;
     private readonly TextBlock _count;
@@ -37,16 +43,16 @@ public sealed class CategoryCard : Button
         var placeholder = new TextBlock
         {
             Text = round ? "" : "",   // persona / nota musical
-            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontFamily = IconFont,
             FontSize = 46,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)),
+            Foreground = PlaceholderBrush,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
         Shape background = round
             ? new Ellipse { Width = width, Height = height }
             : new Rectangle { Width = width, Height = height, RadiusX = 14, RadiusY = 14 };
-        background.Fill = new SolidColorBrush(Color.FromRgb(0x15, 0x15, 0x15));
+        background.Fill = EmptyFill;
 
         var pictureArea = new Grid { Width = width, Height = height, HorizontalAlignment = HorizontalAlignment.Center };
         pictureArea.Children.Add(background);
@@ -66,7 +72,7 @@ public sealed class CategoryCard : Button
         _count = new TextBlock
         {
             FontSize = 12,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A)),
+            Foreground = CountBrush,
             TextAlignment = round ? TextAlignment.Center : TextAlignment.Left,
         };
 
@@ -86,7 +92,7 @@ public sealed class CategoryCard : Button
         Shape shape = _round
             ? new Ellipse { Width = size, Height = size }
             : new Rectangle { Width = size * 1.6, Height = size, RadiusX = 10, RadiusY = 10 };
-        shape.Fill = _picture.Fill ?? new SolidColorBrush(Color.FromRgb(0x15, 0x15, 0x15));
+        shape.Fill = _picture.Fill ?? EmptyFill;
         return shape;
     }
 
@@ -99,7 +105,7 @@ public sealed class CategoryCard : Button
 
     public void SetPicture(string? url)
     {
-        if (string.IsNullOrEmpty(url) || url == _pictureUrl)
+        if (string.IsNullOrEmpty(url) || (url == _pictureUrl && _picture.Fill is not null))
             return;
         _pictureUrl = url;
         try
@@ -116,5 +122,17 @@ public sealed class CategoryCard : Button
         {
             // URL no válida: se queda el icono.
         }
+    }
+
+    /// <summary>Suelta la foto decodificada mientras la tarjeta no se ve; la URL se conserva.</summary>
+    public void ReleasePicture() => _picture.Fill = null;
+
+    /// <summary>Vuelve a cargar la foto soltada con <see cref="ReleasePicture"/>, si se conoce su URL.</summary>
+    public void RestorePicture() => SetPicture(_pictureUrl);
+
+    private static Brush Frozen(Brush brush)
+    {
+        brush.Freeze();
+        return brush;
     }
 }

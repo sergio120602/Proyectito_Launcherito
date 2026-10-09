@@ -157,6 +157,9 @@ internal sealed class TileAnimator
 
     private static Point Center(Rect slot) => new(slot.X + slot.Width / 2, slot.Y + slot.Height / 2);
 
+    /// <summary>Detiene las tandas pendientes (al cerrar la ventana).</summary>
+    public void Stop() => _waveTimer.Stop();
+
     /// <summary>Corta la animación de una tesela y la deja en su sitio.</summary>
     public void Finish(MosaicTile? tile)
     {

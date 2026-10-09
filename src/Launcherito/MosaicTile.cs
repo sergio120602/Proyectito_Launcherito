@@ -11,7 +11,10 @@ namespace Launcherito;
 /// </summary>
 public sealed class MosaicTile : Border
 {
-    private const int CoverSize = 400;
+    // La carátula se decodifica al tamaño real de la tesela en píxeles (una normal mide ~190), con
+    // este tope para las grandes. Cargarlas todas a 400 px costaba ~55 MB más con 90 canciones.
+    private const int MaxCoverSize = 400;
+    private const int CoverStep = 32;   // se redondea hacia arriba para no recargar por pocos píxeles
     // Mientras la tesela se anima se ve una copia diminuta de la carátula: estirada queda muy
     // desenfocada y apenas cuesta dibujarla. Así no hace falta un BlurEffect, que recalcularía el
     // desenfoque en cada fotograma. Al quedarse quieta se cambia por la nítida.
@@ -21,6 +24,8 @@ public sealed class MosaicTile : Border
     // Como mucho 4 lecturas de disco a la vez al desplazarse rápido por el mosaico.
     private static readonly SemaphoreSlim Loader = new(4);
     private static readonly Brush EmptyBackground = Frozen(new SolidColorBrush(Color.FromRgb(0x15, 0x15, 0x15)));
+    private static readonly Brush PlaceholderBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)));
+    private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
     private static readonly Brush Shade = Frozen(new LinearGradientBrush(
         Color.FromArgb(0x00, 0, 0, 0), Color.FromArgb(0xE6, 0, 0, 0), 90));
 
@@ -36,6 +41,7 @@ public sealed class MosaicTile : Border
     private bool _isAnimating;
     private bool _coverWanted;
     private int _coverVersion;   // invalida cargas en curso cuando la carátula se suelta
+    private int _coverPixels;    // ancho con el que se ha decodificado la carátula nítida actual
 
     public MosaicTile(string path)
     {
@@ -49,9 +55,9 @@ public sealed class MosaicTile : Border
         _placeholder = new TextBlock
         {
             Text = "",
-            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontFamily = IconFont,
             FontSize = 48,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)),
+            Foreground = PlaceholderBrush,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -97,20 +103,40 @@ public sealed class MosaicTile : Border
             return;
         _coverWanted = false;
         _coverVersion++;
+        _coverPixels = 0;
         _sharpCover = null;
         _blurredCover = null;
         ShowCover();
     }
 
+    /// <summary>Ancho en píxeles de pantalla con el que se ve la tesela (teniendo en cuenta el escalado de Windows).</summary>
+    private int NeededCoverSize()
+    {
+        if (ActualWidth <= 0)
+            return MaxCoverSize;
+        double pixels = ActualWidth * VisualTreeHelper.GetDpi(this).DpiScaleX;
+        return Math.Min(MaxCoverSize, (int)Math.Ceiling(pixels / CoverStep) * CoverStep);
+    }
+
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+    {
+        base.OnRenderSizeChanged(sizeInfo);
+        // Si la tesela crece (pasa a ser la que suena o se agranda la ventana), se recarga más nítida;
+        // mientras tanto sigue viéndose la que había.
+        if (_coverWanted && _sharpCover is not null && NeededCoverSize() > _coverPixels)
+            _ = LoadCoverAsync(++_coverVersion);
+    }
+
     private async Task LoadCoverAsync(int version)
     {
         SongInfo info;
+        int size = NeededCoverSize();
         await Loader.WaitAsync();
         try
         {
             if (version != _coverVersion)
                 return;
-            info = await Task.Run(() => SongInfo.Read(SongPath, CoverSize, PreviewSize));
+            info = await Task.Run(() => SongInfo.Read(SongPath, size, PreviewSize));
         }
         finally
         {
@@ -126,6 +152,9 @@ public sealed class MosaicTile : Border
         if (version != _coverVersion || info.Cover is null)
             return;
         _sharpCover = CoverBrush(info.Cover);
+        _coverPixels = size;
+        if (NeededCoverSize() > size)
+            _ = LoadCoverAsync(++_coverVersion);   // ha crecido mientras se leía
         _blurredCover = info.Preview is null ? null : CoverBrush(info.Preview);
         ShowCover();
     }

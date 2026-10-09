@@ -39,6 +39,10 @@ public partial class MainWindow : Window
     private string? _openCategory;                                // artista o género abierto, o null en la lista
     private readonly DispatcherTimer _categoryRefresh = new() { Interval = TimeSpan.FromMilliseconds(700) };
     private const string Unclassified = "Sin clasificar";
+    private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
+
+    private int _metadataVersion;     // invalida lecturas de etiquetas de una canción que ya no suena
+    private string? _coverShownFor;   // canción cuya carátula grande está cargada en la vista original
 
     public MainWindow()
     {
@@ -120,7 +124,7 @@ public partial class MainWindow : Window
     private void PlaySong(string path)
     {
         Stop();
-        ShowMetadata(path);
+        _ = ShowMetadataAsync(path);
         UpdatePosition();
         SetActiveTile(path);
 
@@ -169,15 +173,44 @@ public partial class MainWindow : Window
     private void UpdatePosition() =>
         PositionText.Text = _playlist.Count == 0 ? "" : $"{_playlist.Position + 1} / {_playlist.Count}";
 
-    private void ShowMetadata(string path)
+    /// <summary>
+    /// Pone al momento el título y el artista que ya se conocen y luego lee las etiquetas fuera del
+    /// hilo de la interfaz, para que la ventana no se congele al cambiar de canción. La carátula
+    /// grande solo se decodifica si se ve la vista original.
+    /// </summary>
+    private async Task ShowMetadataAsync(string path)
     {
-        var info = SongInfo.Read(path, CoverDecodeSize);
-        TitleText.Text = info.Title;
-        ArtistText.Text = info.Artist;
-        BarTitleText.Text = info.Title;
-        BarArtistText.Text = info.Artist;
-        CoverBrush.ImageSource = info.Cover;
-        CoverPlaceholder.Visibility = info.Cover is null ? Visibility.Visible : Visibility.Collapsed;
+        int version = ++_metadataVersion;
+        bool withCover = SingleViewVisible;
+
+        if (_meta.TryGetValue(path, out var known))
+            SetSongTexts(known.Title, known.Artist);
+        else
+            SetSongTexts(Path.GetFileNameWithoutExtension(path), "");
+        if (_coverShownFor != path)
+            ShowCover(null, null);
+
+        var info = await Task.Run(() => SongInfo.Read(path, withCover ? CoverDecodeSize : 0));
+        if (version != _metadataVersion)
+            return;   // mientras se leía ya se ha pasado a otra canción
+        SetSongTexts(info.Title, info.Artist);
+        if (withCover)
+            ShowCover(info.Cover, path);
+    }
+
+    private void SetSongTexts(string title, string artist)
+    {
+        TitleText.Text = title;
+        ArtistText.Text = artist;
+        BarTitleText.Text = title;
+        BarArtistText.Text = artist;
+    }
+
+    private void ShowCover(ImageSource? cover, string? path)
+    {
+        CoverBrush.ImageSource = cover;
+        CoverPlaceholder.Visibility = cover is null ? Visibility.Visible : Visibility.Collapsed;
+        _coverShownFor = path;
     }
 
     // ─────────────────────── Pestañas: artistas y géneros ───────────────────────
@@ -199,6 +232,14 @@ public partial class MainWindow : Window
     {
         _section = section;
         _openCategory = null;
+        // Las fotos de las tarjetas que dejan de verse se sueltan; se recargan al volver a su pestaña.
+        if (section != Section.Artists)
+            foreach (var card in _artistCards.Values)
+                card.ReleasePicture();
+        if (section != Section.Genres)
+            foreach (var card in _genreCards.Values)
+                card.ReleasePicture();
+        CategoryHeaderPictureHost.Child = null;
         ApplyView();
         RefreshCategories();
         CategoryScroll.ScrollToTop();
@@ -317,6 +358,7 @@ public partial class MainWindow : Window
                 _ = LoadArtistPictureAsync(card);
         }
         card.SetPicture(picture);
+        card.RestorePicture();
         return card;
     }
 
@@ -366,7 +408,7 @@ public partial class MainWindow : Window
             var icon = new TextBlock
             {
                 Text = playing ? "\uE995" : "\uE768",   // altavoz / reproducir
-                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontFamily = IconFont,
                 Foreground = playing ? accent : muted,
                 VerticalAlignment = VerticalAlignment.Center,
             };
@@ -419,12 +461,15 @@ public partial class MainWindow : Window
     /// <summary>El mosaico solo se ve en la pestaña Canciones con la vista mosaico elegida.</summary>
     private bool MosaicVisible => _section == Section.Songs && _mosaicView;
 
+    /// <summary>La vista original (carátula grande) solo se ve en Canciones sin la vista mosaico.</summary>
+    private bool SingleViewVisible => _section == Section.Songs && !_mosaicView;
+
     /// <summary>Muestra la vista que toca según la pestaña y la vista elegidas.</summary>
     private void ApplyView()
     {
         bool songs = _section == Section.Songs;
         MosaicView.Visibility = MosaicVisible ? Visibility.Visible : Visibility.Collapsed;
-        SingleView.Visibility = songs && !_mosaicView ? Visibility.Visible : Visibility.Collapsed;
+        SingleView.Visibility = SingleViewVisible ? Visibility.Visible : Visibility.Collapsed;
         CategoryView.Visibility = songs ? Visibility.Collapsed : Visibility.Visible;
         ViewToggleButton.Visibility = songs ? Visibility.Visible : Visibility.Collapsed;
         // El botón muestra la vista a la que se cambia al pulsarlo.
@@ -445,6 +490,12 @@ public partial class MainWindow : Window
             foreach (var tile in _tiles.Values)
                 tile.ReleaseCover();
         }
+
+        // La carátula grande (640 px, ~1,6 MB) solo ocupa memoria mientras se ve la vista original.
+        if (!SingleViewVisible)
+            ShowCover(null, null);
+        else if (_playlist.Current is { } current && _coverShownFor != current)
+            _ = ShowMetadataAsync(current);
     }
 
     /// <summary>Crea o quita teselas para que el mosaico coincida con la lista de reproducción.</summary>
@@ -761,6 +812,7 @@ public partial class MainWindow : Window
         _player.MediaFailed -= Player_MediaFailed;
         _player.Close();
         _categoryRefresh.Stop();
+        _animator.Stop();
         _catalog.Save();
         base.OnClosed(e);
     }

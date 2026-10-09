@@ -6,6 +6,18 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.2.1] - 2026-10-09
+
+### Cambiado
+- **La ventana ya no se congela al cambiar de canción**: el título y el artista aparecen al momento y las etiquetas y la carátula se leen en segundo plano. El bloqueo medio al pasar de canción baja de ~9 ms a ~2 ms (medido con 90 canciones); si se cambia de canción mientras se lee, la lectura antigua se descarta.
+- La carátula grande de la vista original solo se decodifica mientras se ve esa vista, y se suelta al pasar al mosaico o a Artistas/Géneros.
+- Las fotos de las tarjetas de Artistas y Géneros se sueltan al salir de su pestaña y se recargan al volver.
+- Las portadas del mosaico se decodifican al tamaño real con que se ven en pantalla (teniendo en cuenta el escalado de Windows), con un tope de 400 px; si una portada crece, se recarga más nítida.
+- Pinceles y fuentes de iconos compartidos entre todas las portadas, tarjetas y filas en lugar de crear unos nuevos para cada una.
+
+### Corregido
+- El temporizador de las tandas de animación se detiene al cerrar la ventana, como los demás.
+
 ## [1.2] - 2026-10-09
 
 ### Añadido

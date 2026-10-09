@@ -2,7 +2,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.2-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.2.1-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -58,6 +58,7 @@
 | **1.1.2** | La ventana muestra la versión del programa ✅ |
 | **1.1.3** | Animaciones más lentas: se ve cómo se forma el mosaico desde la canción que suena ✅ |
 | **1.2** | Pestañas Canciones / Artistas / Géneros: clasificación con la API de Deezer y fotos de cada artista y género ✅ |
+| **1.2.1** | La ventana no se congela al cambiar de canción y menos memoria en las vistas que no se ven ✅ |
 | 1.3 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
 | 1.4 | Sistema de temas y personalización |
 | 1.5 | Visualizador y color dinámico |
