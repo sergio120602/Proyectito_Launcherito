@@ -6,6 +6,15 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.1.3] - 2026-10-09
+
+### Cambiado
+- Animaciones de entrada 2,5 veces más lentas, para que se vean bien.
+- Se ve cómo se forma el mosaico: las portadas entran una tras otra (hasta 300 ms entre una y la siguiente, y todas empezadas en 4 s), empezando por la canción que suena y siguiendo por las más cercanas a ella.
+
+### Corregido
+- Al cargar canciones la ventana se quedaba en negro unos segundos: las primeras portadas en entrar quedaban fuera de la pantalla, porque el mosaico se desplaza enseguida hasta la canción que suena.
+
 ## [1.1.2] - 2026-10-09
 
 ### Añadido

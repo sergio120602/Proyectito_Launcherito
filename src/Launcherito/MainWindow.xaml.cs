@@ -228,7 +228,7 @@ public partial class MainWindow : Window
         onLayout = (_, _) =>
         {
             Mosaic.LayoutUpdated -= onLayout;
-            _animator.Animate(added, oldSlots, _isSeeking ? _activeTile : null);
+            _animator.Animate(added, oldSlots, _activeTile, _isSeeking);
         };
         Mosaic.LayoutUpdated += onLayout;
     }

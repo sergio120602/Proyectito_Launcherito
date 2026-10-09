@@ -16,8 +16,12 @@ internal sealed class TileAnimator
     private enum Intro { Spin, Grow, Crash, Drop, Skid, Card, Flicker }
 
     private static readonly Intro[] Intros = Enum.GetValues<Intro>();
-    private static readonly TimeSpan Stagger = TimeSpan.FromMilliseconds(60);
-    private const int MaxStaggered = 12;   // a partir de la 12.ª, las demás entran a la vez
+    // Todas las animaciones van 2,5 veces más lentas que los tiempos escritos abajo, para que se vean bien.
+    private const double Slowdown = 2.5;
+    // Las nuevas entran una tras otra para que se vea cómo se forma el mosaico: como mucho 300 ms entre
+    // una y la siguiente, y todas empezadas en 4 s aunque sean muchas (tiempos reales, ya ralentizados).
+    private const double MaxStepMs = 300;
+    private const double FormingMs = 4000;
 
     // Rutas a las transformaciones del TransformGroup que monta Prepare (escala, sesgo, giro, traslación).
     private const string ScaleX = "(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)";
@@ -56,12 +60,15 @@ internal sealed class TileAnimator
 
     /// <summary>
     /// Con el mosaico ya recolocado: hace entrar las teselas nuevas y lleva las demás de su sitio
-    /// antiguo al nuevo. <paramref name="skip"/> no se anima (la portada activa mientras se arrastra la barra).
+    /// antiguo al nuevo. El mosaico se forma desde <paramref name="active"/> (la canción que suena) hacia
+    /// fuera; si <paramref name="activeLocked"/> (se está arrastrando la barra), esa portada no se anima.
     /// </summary>
-    public void Animate(IReadOnlyList<MosaicTile> added, Dictionary<MosaicTile, Rect>? oldSlots, MosaicTile? skip)
+    public void Animate(IReadOnlyList<MosaicTile> added, Dictionary<MosaicTile, Rect>? oldSlots,
+        MosaicTile? active, bool activeLocked)
     {
         if (_viewer.Visibility != Visibility.Visible)
             return;
+        var skip = activeLocked ? active : null;
 
         // También una pantalla por encima y otra por debajo: justo después el mosaico puede
         // desplazarse hasta la canción activa y las que entran quedarían fuera de la vista.
@@ -69,18 +76,25 @@ internal sealed class TileAnimator
         double bottom = _viewer.VerticalOffset + _viewer.ViewportHeight * 2;
         bool InView(Rect slot) => slot.Bottom > top && slot.Top < bottom;
 
-        // Las nuevas entran de una en una, de arriba abajo y de izquierda a derecha.
+        // Las nuevas entran de una en una, empezando por la canción que suena y siguiendo por las más
+        // cercanas a ella. El mosaico se desplaza enseguida hasta esa canción, así que son las que se
+        // ven: si entraran de arriba abajo, las primeras lo harían fuera de la pantalla.
+        var anchor = active?.Parent == _panel
+            ? Center(LayoutInformation.GetLayoutSlot(active))
+            : new Point(_panel.ActualWidth / 2, _viewer.VerticalOffset + _viewer.ViewportHeight / 2);
         var entering = added
             .Where(tile => tile != skip && tile.Parent == _panel)
             .Select(tile => (Tile: tile, Slot: LayoutInformation.GetLayoutSlot(tile)))
             .Where(item => InView(item.Slot))
-            .OrderBy(item => item.Slot.Top).ThenBy(item => item.Slot.Left)
+            .OrderBy(item => (Center(item.Slot) - anchor).LengthSquared)
             .ToList();
 
+        // Los tiempos de las animaciones se escriben sin ralentizar: se divide entre Slowdown.
+        var step = TimeSpan.FromMilliseconds(Math.Min(MaxStepMs, FormingMs / Math.Max(1, entering.Count)) / Slowdown);
         TimeSpan? impact = null;   // primer choque, para que las demás se aparten justo entonces
         for (int i = 0; i < entering.Count; i++)
         {
-            var hit = PlayIntro(entering[i].Tile, entering[i].Slot, Stagger * Math.Min(i, MaxStaggered), _viewer.VerticalOffset);
+            var hit = PlayIntro(entering[i].Tile, entering[i].Slot, step * i, _viewer.VerticalOffset);
             if (hit < impact || (impact is null && hit is not null))
                 impact = hit;
         }
@@ -96,6 +110,8 @@ internal sealed class TileAnimator
                 PlayMove(tile, old, now, impact);
         }
     }
+
+    private static Point Center(Rect slot) => new(slot.X + slot.Width / 2, slot.Y + slot.Height / 2);
 
     /// <summary>Corta la animación de una tesela y la deja en su sitio.</summary>
     public void Finish(MosaicTile? tile)
@@ -236,7 +252,7 @@ internal sealed class TileAnimator
             Children = { new ScaleTransform(), new SkewTransform(), new RotateTransform(), new TranslateTransform() },
         };
         // Stop: al acabar, todo vuelve a su valor base (escala 1, giro 0, opacidad 1), que es el final.
-        return new Storyboard { FillBehavior = FillBehavior.Stop };
+        return new Storyboard { FillBehavior = FillBehavior.Stop, SpeedRatio = 1 / Slowdown };
     }
 
     private void Start(MosaicTile tile, Storyboard sb, int zIndex)
