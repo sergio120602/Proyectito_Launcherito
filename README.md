@@ -2,7 +2,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-0.3-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.0-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -11,6 +11,14 @@
 ## ✨ ¿Qué es Launcherito?
 
 **Launcherito** es un launcher de escritorio para gestionar y reproducir tu biblioteca musical desde un único lugar. La idea es sencilla: que escuchar música sea tan agradable como la propia música. Para ello combina una interfaz cuidada al detalle con un sistema de personalización que te deja cambiar prácticamente todo lo que ves.
+
+## 🧩 Qué hace ya
+
+- **Vista mosaico**: todas tus canciones como un mosaico de portadas de distintos tamaños. La que suena se ve en grande, con la barra y los controles dentro de la propia portada.
+- **Vista original**: una sola portada grande con el reproductor debajo. Se cambia entre las dos vistas con el botón de arriba a la derecha.
+- Carga de varios `.mp3` a la vez (o *Abrir con → Launcherito*) y lista de reproducción sin límite.
+- Anterior / siguiente, modo aleatorio (activado por defecto) u orden alfabético, y paso automático a la siguiente canción.
+- Las portadas del mosaico se cargan en segundo plano solo cuando se ven, para que una biblioteca grande no dispare la memoria.
 
 ## 🚀 Características previstas
 
@@ -43,13 +51,13 @@
 | **0.1** | Creación del proyecto, repositorio y documentación inicial ✅ |
 | **0.2** | Aplicación base: ventana, carga de un .mp3, carátula y reproductor sencillo ✅ |
 | **0.3** | Carga de varias canciones, lista de reproducción, anterior/siguiente y modo aleatorio ✅ |
-| 0.4 | Escaneo de la biblioteca local, vista de la lista y búsqueda |
-| 0.5 | Sistema de temas y personalización |
-| 0.6 | Visualizador, color dinámico y animaciones |
-| 0.7 | Ecualizador, atajos globales y mini‑reproductor |
-| 0.8 | Letras sincronizadas y estadísticas |
-| 0.9 | Pulido, rendimiento y corrección de errores |
-| **1.0** | 🎉 Primera versión estable |
+| **1.0** | 🎉 Nueva interfaz: vista mosaico con controles dentro de la portada y cambio de vista ✅ |
+| 1.1 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
+| 1.2 | Conexión a una API para clasificar las canciones por género y artista |
+| 1.3 | Sistema de temas y personalización |
+| 1.4 | Visualizador, color dinámico y animaciones |
+| 1.5 | Ecualizador, atajos globales y mini‑reproductor |
+| 1.6 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 

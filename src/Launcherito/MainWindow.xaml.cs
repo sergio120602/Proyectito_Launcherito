@@ -1,9 +1,9 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private const string PlayIcon = "";
     private const string PauseIcon = "";
     private const int CoverDecodeSize = 640;
+    private const double MinControlsWidth = 330;   // ancho que necesitan los botones sin reducirse
 
     private readonly MediaPlayer _player = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
@@ -21,6 +22,9 @@ public partial class MainWindow : Window
     private bool _isPlaying;
     private bool _isSeeking;
     private int _shownSecond;   // segundo que muestra CurrentTimeText, para no reescribirlo sin necesidad
+    private readonly Dictionary<string, MosaicTile> _tiles = new(StringComparer.OrdinalIgnoreCase);
+    private MosaicTile? _activeTile;
+    private bool _mosaicView;
 
     public MainWindow()
     {
@@ -35,6 +39,7 @@ public partial class MainWindow : Window
         SeekSlider.AddHandler(PreviewMouseLeftButtonDownEvent,
             new MouseButtonEventHandler(SeekSlider_PreviewMouseLeftButtonDown), handledEventsToo: true);
         UpdateShuffleButton();
+        SetMosaicView(false);
 
         // Permite abrir canciones pasadas como argumento (p. ej. "Abrir con → Launcherito").
         var args = Environment.GetCommandLineArgs();
@@ -73,8 +78,14 @@ public partial class MainWindow : Window
                 "Launcherito", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
-        bool wasEmpty = _playlist.Count == 0;
+        int before = _playlist.Count;
+        bool wasEmpty = before == 0;
         _playlist.Add(valid);
+        SyncMosaic();
+
+        // Al pasar de una canción a varias se cambia sola a la vista mosaico.
+        if (before <= 1 && _playlist.Count > 1 && !_mosaicView)
+            SetMosaicView(true);
 
         // Si ya estaba sonando algo, las nuevas canciones se añaden a la lista sin interrumpirla.
         if (wasEmpty && _playlist.Current is { } first)
@@ -88,6 +99,7 @@ public partial class MainWindow : Window
         Stop();
         ShowMetadata(path);
         UpdatePosition();
+        SetActiveTile(path);
 
         SeekSlider.Value = 0;
         _shownSecond = 0;
@@ -134,62 +146,166 @@ public partial class MainWindow : Window
 
     private void ShowMetadata(string path)
     {
-        string title = Path.GetFileNameWithoutExtension(path);
-        string artist = "Artista desconocido";
-        byte[]? coverData = null;
-
-        try
-        {
-            // El bloque using equivale al try-with-resources de Java: el archivo se cierra al salir
-            // del bloque, antes de decodificar la carátula. ReadStyle.None evita analizar todo el
-            // audio para calcular su duración, que aquí ya obtiene el reproductor.
-            using (var file = TagLib.File.Create(path, TagLib.ReadStyle.None))
-            {
-                if (!string.IsNullOrWhiteSpace(file.Tag.Title))
-                    title = file.Tag.Title;
-                if (!string.IsNullOrWhiteSpace(file.Tag.FirstPerformer))
-                    artist = file.Tag.FirstPerformer;
-                if (file.Tag.Pictures.Length > 0)
-                    coverData = file.Tag.Pictures[0].Data.Data;
-            }
-        }
-        catch (Exception)
-        {
-            // Etiquetas ilegibles: se usa el nombre del archivo y la carátula por defecto.
-        }
-
-        var cover = coverData is null ? null : LoadImage(coverData);
-
-        TitleText.Text = title;
-        ArtistText.Text = artist;
-        CoverBrush.ImageSource = cover;
-        CoverPlaceholder.Visibility = cover is null ? Visibility.Visible : Visibility.Collapsed;
+        var info = SongInfo.Read(path, CoverDecodeSize);
+        TitleText.Text = info.Title;
+        ArtistText.Text = info.Artist;
+        CoverBrush.ImageSource = info.Cover;
+        CoverPlaceholder.Visibility = info.Cover is null ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private static BitmapImage? LoadImage(byte[] data)
+    // ───────────────────────────── Vista mosaico ─────────────────────────────
+
+    private void ViewToggleButton_Click(object sender, RoutedEventArgs e) => SetMosaicView(!_mosaicView);
+
+    private void SetMosaicView(bool mosaic)
     {
-        try
+        _mosaicView = mosaic;
+        MosaicView.Visibility = mosaic ? Visibility.Visible : Visibility.Collapsed;
+        SingleView.Visibility = mosaic ? Visibility.Collapsed : Visibility.Visible;
+        // El botón muestra la vista a la que se cambia al pulsarlo.
+        ViewToggleIcon.Text = mosaic ? "" : "";
+        ViewToggleText.Text = mosaic ? "Vista original" : "Vista mosaico";
+
+        MoveControls();
+        if (mosaic)
         {
-            var image = new BitmapImage();
-            using var stream = new MemoryStream(data);
-            image.BeginInit();
-            // OnLoad copia los píxeles al crearla, así el stream puede liberarse al salir del método.
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            // Limita la resolución decodificada: una carátula de 3000x3000 ocuparía ~36 MB en memoria.
-            // DelayCreation lee solo la cabecera para conocer el tamaño sin decodificar la imagen.
-            int width = BitmapFrame.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None).PixelWidth;
-            if (width > CoverDecodeSize)
-                image.DecodePixelWidth = CoverDecodeSize;
-            stream.Position = 0;
-            image.StreamSource = stream;
-            image.EndInit();
-            image.Freeze();
-            return image;
+            ScrollToActiveTile();
         }
-        catch (Exception)
+        else
         {
-            return null;
+            // En la vista original no se ven las portadas del mosaico: se libera su memoria.
+            foreach (var tile in _tiles.Values)
+                tile.ReleaseCover();
         }
+    }
+
+    /// <summary>Crea o quita teselas para que el mosaico coincida con la lista de reproducción.</summary>
+    private void SyncMosaic()
+    {
+        var songs = _playlist.Songs;
+        var present = new HashSet<string>(songs, StringComparer.OrdinalIgnoreCase);
+        foreach (var gone in _tiles.Keys.Where(path => !present.Contains(path)).ToList())
+        {
+            var removed = _tiles[gone];
+            removed.Selected -= Tile_Selected;
+            _tiles.Remove(gone);
+            if (removed == _activeTile)
+            {
+                // Devuelve los controles a la vista original antes de descartar la tesela.
+                removed.SetActive(false);
+                removed.SizeChanged -= ActiveTile_SizeChanged;
+                _activeTile = null;
+                MoveControls();
+            }
+        }
+
+        Mosaic.Children.Clear();
+        for (int i = 0; i < songs.Count; i++)
+        {
+            if (!_tiles.TryGetValue(songs[i], out var tile))
+            {
+                tile = new MosaicTile(songs[i]);
+                tile.Selected += Tile_Selected;
+                _tiles.Add(songs[i], tile);
+            }
+            MosaicPanel.SetSpan(tile, SpanFor(i, tile));
+            Mosaic.Children.Add(tile);
+        }
+
+        SongCountText.Text = songs.Count == 1 ? "1 canción" : $"{songs.Count} canciones";
+        Dispatcher.BeginInvoke(UpdateVisibleCovers, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>La canción que suena ocupa 2x2; del resto, una de cada seis también es grande.</summary>
+    private static int SpanFor(int index, MosaicTile tile) => tile.IsActive || index % 6 == 0 ? 2 : 1;
+
+    private void SetActiveTile(string path)
+    {
+        if (_activeTile is { } old && old.SongPath != path)
+        {
+            old.SetActive(false);
+            old.SizeChanged -= ActiveTile_SizeChanged;
+            MosaicPanel.SetSpan(old, SpanFor(Mosaic.Children.IndexOf(old), old));
+        }
+
+        if (!_tiles.TryGetValue(path, out var tile))
+            return;
+        _activeTile = tile;
+        if (!tile.IsActive)
+        {
+            tile.SetActive(true);
+            tile.SizeChanged += ActiveTile_SizeChanged;
+            MosaicPanel.SetSpan(tile, 2);
+        }
+
+        MoveControls();
+        if (_mosaicView)
+            ScrollToActiveTile();
+    }
+
+    /// <summary>
+    /// Coloca el único juego de controles (barra, tiempos y botones) en la vista original
+    /// o dentro de la portada activa del mosaico.
+    /// </summary>
+    private void MoveControls()
+    {
+        Decorator target = _mosaicView && _activeTile?.ControlsHost is { } host ? host : OriginalControlsHost;
+        if (ControlsPanel.Parent == target)
+            return;
+
+        if (ControlsPanel.Parent is Decorator current)
+            current.Child = null;
+        target.Child = ControlsPanel;
+        UpdateControlsWidth();
+    }
+
+    private void ActiveTile_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateControlsWidth();
+
+    private void UpdateControlsWidth()
+    {
+        // Dentro de la portada los controles ocupan todo su ancho; si la portada es más estrecha que
+        // los botones, el Viewbox de la tesela los reduce en lugar de recortarlos.
+        ControlsPanel.Width = ControlsPanel.Parent == OriginalControlsHost || _activeTile is null
+            ? double.NaN
+            : Math.Max(MinControlsWidth, _activeTile.ActualWidth - 32);
+    }
+
+    private void ScrollToActiveTile()
+    {
+        // Tras recolocar el mosaico, para que la posición de la tesela ya sea la nueva.
+        Dispatcher.BeginInvoke(() =>
+        {
+            _activeTile?.BringIntoView();
+            UpdateVisibleCovers();
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void MosaicView_ScrollChanged(object sender, ScrollChangedEventArgs e) => UpdateVisibleCovers();
+
+    /// <summary>Carga las portadas visibles (y una pantalla por encima y por debajo) y suelta el resto.</summary>
+    private void UpdateVisibleCovers()
+    {
+        if (!_mosaicView)
+            return;
+
+        double margin = MosaicView.ViewportHeight;
+        double top = MosaicView.VerticalOffset - margin;
+        double bottom = MosaicView.VerticalOffset + MosaicView.ViewportHeight + margin;
+
+        foreach (MosaicTile tile in Mosaic.Children)
+        {
+            var slot = LayoutInformation.GetLayoutSlot(tile);
+            if (slot.Bottom >= top && slot.Top <= bottom)
+                tile.EnsureCover();
+            else
+                tile.ReleaseCover();
+        }
+    }
+
+    private void Tile_Selected(object? sender, EventArgs e)
+    {
+        if (sender is MosaicTile tile && _playlist.JumpTo(tile.SongPath) is { } song)
+            PlaySong(song);
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)
@@ -242,7 +358,9 @@ public partial class MainWindow : Window
         MessageBox.Show(this, $"No se pudo reproducir «{TitleText.Text}» y se ha quitado de la lista.\n{e.ErrorException.Message}",
             "Launcherito", MessageBoxButton.OK, MessageBoxImage.Error);
 
-        if (_playlist.RemoveCurrent() is { } next)
+        var next = _playlist.RemoveCurrent();
+        SyncMosaic();
+        if (next is not null)
         {
             PlaySong(next);
         }

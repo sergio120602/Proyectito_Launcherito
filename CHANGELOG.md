@@ -6,6 +6,22 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.0] - 2026-10-09
+
+Cambio de versión mayor: nueva interfaz.
+
+### Añadido
+- **Vista mosaico** con todas las canciones: portadas de distintos tamaños colocadas sin huecos (`MosaicPanel`). La canción que suena ocupa una portada grande con un borde de color.
+- **Barra deslizante y controles dentro de la portada** que está sonando, con título y artista sobre un degradado.
+- **Botón de cambio de vista** arriba a la derecha («Vista mosaico» ↔ «Vista original»). Al cargar varias canciones se pasa sola al mosaico.
+- Pulsar cualquier portada del mosaico reproduce esa canción. Al pasar el ratón se ve su título.
+- Barra superior con «＋ Añadir canciones» y el número de canciones cargadas.
+
+### Mejorado
+- Las portadas del mosaico se leen en segundo plano (como mucho 4 a la vez) y solo cuando están cerca de la zona visible. Las que se alejan se liberan, y al volver a la vista original se sueltan todas. Con 250 canciones la memoria se mantiene estable.
+- La lectura de etiquetas está en una sola clase (`SongInfo`), compartida por las dos vistas.
+- La ventana es más grande por defecto (1000×760) para aprovechar el mosaico.
+
 ## [0.3] - 2026-10-09
 
 ### Añadido

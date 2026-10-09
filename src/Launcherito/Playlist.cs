@@ -19,6 +19,9 @@ public sealed class Playlist
 
     public int Count => _songs.Count;
 
+    /// <summary>Todas las canciones en orden alfabético (el orden del mosaico).</summary>
+    public IReadOnlyList<string> Songs => _songs;
+
     /// <summary>Posición (empezando en 0) de la canción actual en el orden de reproducción.</summary>
     public int Position => _position;
 
@@ -60,6 +63,15 @@ public sealed class Playlist
             RebuildOrder(current);
         }
         return added;
+    }
+
+    /// <summary>Hace que la canción indicada sea la actual sin cambiar el orden de reproducción.</summary>
+    public string? JumpTo(string path)
+    {
+        int index = _songs.IndexOf(path);
+        if (index >= 0)
+            _position = _order.IndexOf(index);
+        return Current;
     }
 
     public string? Next() => Move(+1);
