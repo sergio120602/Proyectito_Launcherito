@@ -103,6 +103,7 @@ internal sealed class TileAnimator
         if (tile is null || !_running.Remove(tile, out var storyboard))
             return;
         storyboard.Remove(tile);   // para la animación y suelta sus relojes
+        tile.IsAnimating = false;  // ya en su sitio: carátula nítida
         tile.ClearValue(UIElement.RenderTransformProperty);
         tile.ClearValue(UIElement.RenderTransformOriginProperty);
         tile.ClearValue(Panel.ZIndexProperty);
@@ -228,6 +229,7 @@ internal sealed class TileAnimator
     private Storyboard Prepare(MosaicTile tile, Point origin)
     {
         Finish(tile);
+        tile.IsAnimating = true;   // carátula desenfocada mientras se mueve
         tile.RenderTransformOrigin = origin;
         tile.RenderTransform = new TransformGroup
         {

@@ -11,10 +11,11 @@ namespace Launcherito;
 /// </summary>
 public sealed class MosaicTile : Border
 {
-    // Carátula a propósito diminuta: al estirarla hasta la tesela queda muy desenfocada. Se lee,
-    // decodifica y guarda ~150 veces menos píxeles que a 400 px, y no hace falta un BlurEffect, que
-    // obligaría a recalcular el desenfoque en cada fotograma (sobre todo durante las animaciones).
-    private const int CoverSize = 32;
+    private const int CoverSize = 400;
+    // Mientras la tesela se anima se ve una copia diminuta de la carátula: estirada queda muy
+    // desenfocada y apenas cuesta dibujarla. Así no hace falta un BlurEffect, que recalcularía el
+    // desenfoque en cada fotograma. Al quedarse quieta se cambia por la nítida.
+    private const int PreviewSize = 32;
     private const double Radius = 14;
 
     // Como mucho 4 lecturas de disco a la vez al desplazarse rápido por el mosaico.
@@ -30,6 +31,9 @@ public sealed class MosaicTile : Border
     private Border? _activeOverlay;
     private TextBlock? _activeTitle;
     private TextBlock? _activeArtist;
+    private Brush? _sharpCover;
+    private Brush? _blurredCover;
+    private bool _isAnimating;
     private bool _coverWanted;
     private int _coverVersion;   // invalida cargas en curso cuando la carátula se suelta
 
@@ -66,6 +70,19 @@ public sealed class MosaicTile : Border
     /// <summary>Hueco dentro de la portada activa donde se colocan la barra y los botones.</summary>
     public Decorator? ControlsHost { get; private set; }
 
+    /// <summary>Lo activa TileAnimator mientras la tesela se mueve: entretanto la carátula se ve desenfocada.</summary>
+    public bool IsAnimating
+    {
+        get => _isAnimating;
+        set
+        {
+            if (_isAnimating == value)
+                return;
+            _isAnimating = value;
+            ShowCover();
+        }
+    }
+
     public void EnsureCover()
     {
         if (_coverWanted)
@@ -80,8 +97,9 @@ public sealed class MosaicTile : Border
             return;
         _coverWanted = false;
         _coverVersion++;
-        Background = EmptyBackground;
-        _placeholder.Visibility = Visibility.Visible;
+        _sharpCover = null;
+        _blurredCover = null;
+        ShowCover();
     }
 
     private async Task LoadCoverAsync(int version)
@@ -92,7 +110,7 @@ public sealed class MosaicTile : Border
         {
             if (version != _coverVersion)
                 return;
-            info = await Task.Run(() => SongInfo.Read(SongPath, CoverSize));
+            info = await Task.Run(() => SongInfo.Read(SongPath, CoverSize, PreviewSize));
         }
         finally
         {
@@ -107,12 +125,24 @@ public sealed class MosaicTile : Border
 
         if (version != _coverVersion || info.Cover is null)
             return;
-        var cover = new ImageBrush(info.Cover) { Stretch = Stretch.UniformToFill };
-        // Escalado lineal: suaviza los píxeles al estirarla, que es lo que da el desenfoque.
-        RenderOptions.SetBitmapScalingMode(cover, BitmapScalingMode.Linear);
-        cover.Freeze();
-        Background = cover;
-        _placeholder.Visibility = Visibility.Collapsed;
+        _sharpCover = CoverBrush(info.Cover);
+        _blurredCover = info.Preview is null ? null : CoverBrush(info.Preview);
+        ShowCover();
+    }
+
+    private void ShowCover()
+    {
+        var cover = _isAnimating ? _blurredCover ?? _sharpCover : _sharpCover;
+        Background = cover ?? EmptyBackground;
+        _placeholder.Visibility = cover is null ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private static Brush CoverBrush(ImageSource image)
+    {
+        var brush = new ImageBrush(image) { Stretch = Stretch.UniformToFill };
+        // Escalado lineal: suaviza los píxeles de la copia diminuta al estirarla, que es lo que la desenfoca.
+        RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.Linear);
+        return Frozen(brush);
     }
 
     /// <summary>Marca la tesela como la que suena: muestra título, artista y un hueco para los controles.</summary>

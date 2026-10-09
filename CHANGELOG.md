@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.1.1] - 2026-10-09
+
+### Cambiado
+- Las carátulas del mosaico solo se ven desenfocadas mientras la portada se anima. Una vez en su sitio se ven nítidas (400 px). Cada carátula se lee una vez y de esos mismos datos salen las dos versiones: la nítida y una copia diminuta de 32 px que, estirada, se ve desenfocada durante el movimiento. Sigue sin usarse `BlurEffect`.
+
 ## [1.1] - 2026-10-09
 
 ### Añadido

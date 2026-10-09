@@ -6,6 +6,9 @@ namespace Launcherito;
 /// <summary>Título, artista y carátula de una canción, leídos de sus etiquetas ID3.</summary>
 public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
 {
+    /// <summary>Copia diminuta de la carátula, solo si se pide al leerla (null si no).</summary>
+    public BitmapImage? Preview { get; init; }
+
     // TagLib lee las etiquetas en trozos de 1 KB saltando por el archivo. Con un buffer de 64 KB
     // la cabecera ID3 (y casi siempre la carátula) se trae del disco en una sola lectura.
     private const int ReadBufferSize = 64 * 1024;
@@ -14,7 +17,8 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
     /// Lee las etiquetas de un .mp3. Se puede llamar desde cualquier hilo: la carátula se devuelve congelada.
     /// </summary>
     /// <param name="maxCoverSize">Ancho máximo en píxeles con el que se decodifica la carátula.</param>
-    public static SongInfo Read(string path, int maxCoverSize)
+    /// <param name="previewSize">Si es mayor que 0, ancho de una segunda copia diminuta, sacada de los mismos datos.</param>
+    public static SongInfo Read(string path, int maxCoverSize, int previewSize = 0)
     {
         string title = Path.GetFileNameWithoutExtension(path);
         string artist = "Artista desconocido";
@@ -45,7 +49,10 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
             // Etiquetas ilegibles: se usa el nombre del archivo y la carátula por defecto.
         }
 
-        return new SongInfo(title, artist, coverData is null ? null : LoadImage(coverData, maxCoverSize));
+        return new SongInfo(title, artist, coverData is null ? null : LoadImage(coverData, maxCoverSize))
+        {
+            Preview = coverData is null || previewSize <= 0 ? null : LoadImage(coverData, previewSize),
+        };
     }
 
     /// <summary>Entrega a TagLib un stream de solo lectura ya abierto; el stream lo cierra quien lo creó.</summary>
