@@ -134,6 +134,47 @@
             </Setter>
         </Style>
 
+        <!-- Buscador con forma de píldora: lupa, texto de ayuda (Tag) mientras está vacío y X para borrarlo -->
+        <Style x:Key="SearchBox" TargetType="TextBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="Background" Value="#1C1C1C"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="16"
+                                BorderThickness="1" BorderBrush="Transparent" Padding="12,7">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
+                                           Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="Hint" Grid.Column="1" Margin="10,0,0,0" Text="{TemplateBinding Tag}"
+                                           Foreground="{StaticResource Muted}" VerticalAlignment="Center"
+                                           IsHitTestVisible="False" Visibility="Collapsed"/>
+                                <ScrollViewer x:Name="PART_ContentHost" Grid.Column="1" Margin="8,0,0,0"
+                                              VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="Hint" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#262626"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Botón circular de reproducir / pausar -->
         <Style x:Key="RoundButton" TargetType="Button">
             <Setter Property="Foreground" Value="Black"/>
@@ -430,6 +471,14 @@
     <Grid>
         <!-- Pantalla inicial: canciones del PC, las guardadas, borrarlas o una lista de Spotify -->
         <StackPanel x:Name="StartPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Button x:Name="BackToPlayerButton" Style="{StaticResource SpotifyButton}" Margin="0,0,0,22"
+                    HorizontalAlignment="Center" Visibility="Collapsed" Click="BackToPlayerButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE768;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="BackToPlayerText" Text="Volver al reproductor" Margin="10,0,0,0" VerticalAlignment="Center"
+                               MaxWidth="360" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Button>
             <Button Content="Cargar Archivos" Style="{StaticResource BigButton}" Click="LoadButton_Click"/>
             <Button x:Name="LibraryButton" Style="{StaticResource StartButton}" Margin="0,16,0,0"
                     AutomationProperties.Name="Tus canciones" Click="LibraryButton_Click">
@@ -466,32 +515,48 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Barra superior: pestañas | añadir canciones y estado | cambio de vista -->
+            <!-- Barra superior. Arriba: inicio, pestañas | buscador | editar y cambio de vista.
+                 Abajo: añadir canciones, Tus canciones, borrar y estado. -->
             <Grid Grid.Row="0" Margin="20,14,20,6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="HomeButton" Style="{StaticResource PillButton}" Margin="0,0,10,0"
+                            ToolTip="Volver al menú principal (la música sigue sonando)" Click="HomeButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE80F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="Inicio" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="SongsTab" Style="{StaticResource TabButton}" Content="Canciones" Click="SongsTab_Click"/>
                     <Button x:Name="ArtistsTab" Style="{StaticResource TabButton}" Content="Artistas" Click="ArtistsTab_Click"/>
                     <Button x:Name="GenresTab" Style="{StaticResource TabButton}" Content="Géneros" Click="GenresTab_Click"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,12,0">
-                    <Button Style="{StaticResource LinkButton}" Content="＋  Añadir canciones" Click="LoadButton_Click"/>
-                    <Button Style="{StaticResource LinkButton}" Content="＋  Lista de Spotify" Margin="16,0,0,0"
-                            Click="SpotifyButton_Click"/>
-                    <!-- Solo se ve si hay canciones guardadas que no están cargadas -->
-                    <Button x:Name="TopLibraryButton" Style="{StaticResource LinkButton}" Margin="16,0,0,0"
-                            Visibility="Collapsed" Click="LibraryButton_Click"/>
-                    <Button x:Name="TopDeleteButton" Style="{StaticResource LinkButton}" Content="Borrar"
-                            ToolTip="Borrar canciones de «Tus canciones»" AutomationProperties.Name="Borrar canciones"
-                            Margin="16,0,0,0" Visibility="Collapsed" Click="DeleteSongsButton_Click"/>
-                    <TextBlock x:Name="SongCountText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
-                    <TextBlock x:Name="SpotifyStatusText" FontSize="13" Foreground="{StaticResource SpotifyGreen}" Margin="16,0,0,0"/>
-                    <TextBlock x:Name="CatalogStatusText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
-                </StackPanel>
+
+                <!-- Buscador: las coincidencias salen en una lista debajo; al pulsar una, suena -->
+                <TextBox x:Name="SearchBox" Grid.Column="1" Style="{StaticResource SearchBox}" Tag="Buscar canción…"
+                         HorizontalAlignment="Right" Width="300" MinWidth="120" Margin="16,0,10,0"
+                         AutomationProperties.Name="Buscar canción" ToolTip="Buscar por el nombre de la canción (Ctrl+F)"
+                         TextChanged="SearchBox_TextChanged" PreviewKeyDown="SearchBox_PreviewKeyDown"
+                         GotKeyboardFocus="SearchBox_GotKeyboardFocus"/>
+                <Popup x:Name="SearchPopup" PlacementTarget="{Binding ElementName=SearchBox}" Placement="Bottom"
+                       VerticalOffset="6" StaysOpen="False" AllowsTransparency="True">
+                    <Border Background="#161616" CornerRadius="14" Padding="6" Width="420"
+                            BorderBrush="#2A2A2A" BorderThickness="1">
+                        <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="SearchResults"/>
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- Modo edición del mosaico: Editar se queda en morado mientras está activo y aparece Dejar edición en verde -->
                     <Button x:Name="EditButton" Style="{StaticResource ColorPillButton}" Background="#1C1C1C"
@@ -520,6 +585,21 @@
                             <TextBlock x:Name="ViewToggleText" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="4,10,0,0">
+                    <Button Style="{StaticResource LinkButton}" Content="＋  Añadir canciones" Click="LoadButton_Click"/>
+                    <Button Style="{StaticResource LinkButton}" Content="＋  Lista de Spotify" Margin="16,0,0,0"
+                            Click="SpotifyButton_Click"/>
+                    <!-- Solo se ve si hay canciones guardadas que no están cargadas -->
+                    <Button x:Name="TopLibraryButton" Style="{StaticResource LinkButton}" Margin="16,0,0,0"
+                            Visibility="Collapsed" Click="LibraryButton_Click"/>
+                    <Button x:Name="TopDeleteButton" Style="{StaticResource LinkButton}" Content="Borrar"
+                            ToolTip="Borrar canciones de «Tus canciones»" AutomationProperties.Name="Borrar canciones"
+                            Margin="16,0,0,0" Visibility="Collapsed" Click="DeleteSongsButton_Click"/>
+                    <TextBlock x:Name="SongCountText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
+                    <TextBlock x:Name="SpotifyStatusText" FontSize="13" Foreground="{StaticResource SpotifyGreen}" Margin="16,0,0,0"/>
+                    <TextBlock x:Name="CatalogStatusText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
                 </StackPanel>
             </Grid>
 

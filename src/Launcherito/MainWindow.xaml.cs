@@ -405,6 +405,9 @@ public partial class MainWindow : Window
         TopLibraryButton.ToolTip = $"Tus canciones: cargar {(notLoaded == 1 ? "la que falta" : $"las {notLoaded} que faltan")}";
         TopLibraryButton.Visibility = notLoaded > 0 ? Visibility.Visible : Visibility.Collapsed;
         TopDeleteButton.Visibility = saved > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // En el menú principal, si hay algo cargado, se puede volver al reproductor.
+        BackToPlayerButton.Visibility = _playlist.Count + _shortcuts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        BackToPlayerText.Text = _isPlaying ? $"Volver al reproductor  ·  {TitleText.Text}" : "Volver al reproductor";
     }
 
     /// <summary>Guardadas que no están en el mosaico y se pueden cargar (los .mp3, solo si siguen en su sitio).</summary>
@@ -432,6 +435,7 @@ public partial class MainWindow : Window
             AddShortcuts(spotify);
         if (mp3.Count > 0)
             AddToPlaylist(mp3);
+        ShowPlayer();   // aunque ya estuvieran todas cargadas
 
         int missing = _library.Songs.Count(song => !song.IsSpotify && !File.Exists(song.Key));
         if (missing > 0)
@@ -604,6 +608,7 @@ public partial class MainWindow : Window
             PlaySong(first);
         else
             UpdatePosition();
+        ShowPlayer();   // también si se han añadido desde el menú principal
         return added;
     }
 
@@ -697,6 +702,165 @@ public partial class MainWindow : Window
         CoverBrush.ImageSource = cover;
         CoverPlaceholder.Visibility = cover is null ? Visibility.Visible : Visibility.Collapsed;
         _coverShownFor = path;
+    }
+
+    // ─────────────────────────── Menú principal y buscador ───────────────────────────
+
+    /// <summary>Vuelve a la pantalla inicial sin parar la música; desde allí se vuelve con «Volver al reproductor».</summary>
+    private void HomeButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetEditing(false);
+        CloseVideo();   // su portada deja de verse
+        SearchPopup.IsOpen = false;
+        PlayerPanel.Visibility = Visibility.Collapsed;
+        StartPanel.Visibility = Visibility.Visible;
+        UpdateLibraryButtons();
+    }
+
+    private void BackToPlayerButton_Click(object sender, RoutedEventArgs e) => ShowPlayer();
+
+    /// <summary>Muestra el reproductor si hay algo cargado.</summary>
+    private void ShowPlayer()
+    {
+        if (_playlist.Count + _shortcuts.Count == 0)
+            return;
+        StartPanel.Visibility = Visibility.Collapsed;
+        PlayerPanel.Visibility = Visibility.Visible;
+    }
+
+    // Ctrl+F lleva al buscador.
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control && PlayerPanel.IsVisible)
+        {
+            SearchBox.Focus();
+            SearchBox.SelectAll();
+            e.Handled = true;
+        }
+        base.OnPreviewKeyDown(e);
+    }
+
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => UpdateSearch();
+
+    private void SearchBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (SearchBox.Text.Length > 0)
+            UpdateSearch();
+    }
+
+    private void SearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            // Enter elige la primera.
+            if (SearchResults.Children.OfType<Button>().FirstOrDefault() is { Tag: string key })
+                PickSearchResult(key);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            SearchBox.Text = "";
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Busca por el nombre de la canción (y por el artista) sin distinguir mayúsculas ni tildes, entre
+    /// las cargadas y las guardadas en «Tus canciones». Primero las que empiezan por lo escrito.
+    /// </summary>
+    private void UpdateSearch()
+    {
+        string query = SearchBox.Text.Trim();
+        SearchResults.Children.Clear();
+        if (query.Length == 0)
+        {
+            SearchPopup.IsOpen = false;
+            return;
+        }
+
+        var compare = System.Globalization.CultureInfo.CurrentCulture.CompareInfo;
+        const System.Globalization.CompareOptions Loose =
+            System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace;
+        var matches = SearchCandidates()
+            .Select(song =>
+            {
+                int at = compare.IndexOf(song.Title, query, Loose, out int length);
+                return (song.Key, song.Title, song.Artist, At: at, Length: length,
+                        InArtist: compare.IndexOf(song.Artist, query, Loose) >= 0);
+            })
+            .Where(match => match.At >= 0 || match.InArtist)
+            .OrderBy(match => match.At == 0 ? 0 : match.At > 0 ? 1 : 2)
+            .ThenBy(match => match.Title, StringComparer.CurrentCultureIgnoreCase)
+            // Un .mp3 guardado que ya no está en el PC no se puede poner.
+            .Where(match => _tiles.ContainsKey(match.Key) || SpotifyLibrary.IsSpotify(match.Key) || File.Exists(match.Key))
+            .Take(MaxSearchResults)
+            .ToList();
+
+        if (matches.Count == 0)
+        {
+            SearchResults.Children.Add(new TextBlock
+            {
+                Text = $"Ninguna canción se llama «{query}»",
+                Foreground = (Brush)FindResource("Muted"),
+                Margin = new Thickness(14, 10, 14, 10),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+        }
+        foreach (var match in matches)
+        {
+            var row = CreateSongRow(match.Key, match.Title, match.Artist,
+                match.At >= 0 ? (match.At, match.Length) : null);
+            row.Click -= SongRow_Click;
+            row.Click += (_, _) => PickSearchResult(match.Key);
+            SearchResults.Children.Add(row);
+        }
+        SearchPopup.IsOpen = true;
+    }
+
+    private const int MaxSearchResults = 50;
+
+    /// <summary>Las canciones del mosaico y, además, las guardadas que aún no están cargadas.</summary>
+    private IEnumerable<(string Key, string Title, string Artist)> SearchCandidates()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in _tiles.Keys)
+        {
+            seen.Add(key);
+            if (_meta.TryGetValue(key, out var meta))
+                yield return (key, meta.Title, meta.Artist);
+            else if (SpotifyLibrary.TryGet(key, out var track))
+                yield return (key, track.Title, track.Artists);
+            else
+                yield return (key, SongInfo.FallbackTitle(key), "");
+        }
+        foreach (var song in _library.Songs)
+        {
+            if (seen.Add(song.Key))
+                yield return (song.Key, song.Title, song.Artist);
+        }
+    }
+
+    /// <summary>Pone la canción elegida en el buscador; si era una guardada sin cargar, la carga antes.</summary>
+    private void PickSearchResult(string key)
+    {
+        SearchBox.Text = "";   // cierra la lista
+        Keyboard.ClearFocus();
+        if (!_tiles.ContainsKey(key))
+        {
+            if (SpotifyLibrary.IsSpotify(key))
+            {
+                if (_library.Songs.FirstOrDefault(song => song.Key == key) is { } saved)
+                    SpotifyLibrary.Register(saved.ToTrack());
+                AddShortcuts([key]);
+            }
+            else
+            {
+                AddToPlaylist([key]);
+                if (_playlist.Current == key && _isPlaying)
+                    return;   // era la primera de la lista y ya ha empezado a sonar
+            }
+        }
+        SelectSong(key);
     }
 
     // ─────────────────────── Pestañas: artistas y géneros ───────────────────────
@@ -895,53 +1059,74 @@ public partial class MainWindow : Window
             ? card.CreateThumbnail(72)
             : null;
 
-        var accent = (Brush)FindResource("Accent");
-        var muted = (Brush)FindResource("Muted");
         SongListPanel.Children.Clear();
         foreach (var (path, meta) in songs)
+            SongListPanel.Children.Add(CreateSongRow(path, meta.Title, artists ? meta.GenreName : meta.Artist));
+    }
+
+    /// <summary>
+    /// Fila de una canción (detalle de artista o género, y resultados del buscador): icono, título y
+    /// un dato a la derecha. La que suena sale resaltada. Si se indica, una parte del título va en
+    /// morado (lo que coincide con la búsqueda). Al pulsarla, suena o se ve su vídeo.
+    /// </summary>
+    private Button CreateSongRow(string path, string titleText, string detailText, (int Start, int Length)? highlight = null)
+    {
+        var accent = (Brush)FindResource("Accent");
+        var muted = (Brush)FindResource("Muted");
+        bool playing = string.Equals(path, _playlist.Current, StringComparison.OrdinalIgnoreCase);
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        bool youTube = SpotifyLibrary.IsSpotify(path);
+        var icon = new TextBlock
         {
-            bool playing = string.Equals(path, _playlist.Current, StringComparison.OrdinalIgnoreCase);
-            var row = new Grid();
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            bool youTube = SpotifyLibrary.IsSpotify(path);
-            var icon = new TextBlock
+            Text = playing ? "" : youTube ? "" : "",   // altavoz / vídeo / reproducir
+            FontFamily = IconFont,
+            Foreground = playing ? accent : muted,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var title = new TextBlock
+        {
+            Foreground = playing ? accent : Brushes.White,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        if (highlight is { } part)
+        {
+            title.Inlines.Add(titleText[..part.Start]);
+            title.Inlines.Add(new System.Windows.Documents.Run(titleText.Substring(part.Start, part.Length))
             {
-                Text = playing ? "\uE995" : youTube ? "\uE714" : "\uE768",   // altavoz / vídeo / reproducir
-                FontFamily = IconFont,
-                Foreground = playing ? accent : muted,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            var title = new TextBlock
-            {
-                Text = meta.Title,
-                Foreground = playing ? accent : Brushes.White,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            };
-            var detail = new TextBlock
-            {
-                Text = artists ? meta.GenreName : meta.Artist,
-                Foreground = muted,
-                Margin = new Thickness(16, 0, 0, 0),
-            };
-            Grid.SetColumn(title, 1);
-            Grid.SetColumn(detail, 2);
-            row.Children.Add(icon);
-            row.Children.Add(title);
-            row.Children.Add(detail);
-
-            var button = new Button
-            {
-                Style = (Style)FindResource("SongRowButton"),
-                Content = row,
-                Tag = path,
-                ToolTip = youTube ? "Ver su vídeo de YouTube" : null,
-            };
-            button.Click += SongRow_Click;
-            SongListPanel.Children.Add(button);
+                Foreground = accent,
+                FontWeight = FontWeights.SemiBold,
+            });
+            title.Inlines.Add(titleText[(part.Start + part.Length)..]);
         }
+        else
+        {
+            title.Text = titleText;
+        }
+        var detail = new TextBlock
+        {
+            Text = detailText,
+            Foreground = muted,
+            Margin = new Thickness(16, 0, 0, 0),
+        };
+        Grid.SetColumn(title, 1);
+        Grid.SetColumn(detail, 2);
+        row.Children.Add(icon);
+        row.Children.Add(title);
+        row.Children.Add(detail);
+
+        var button = new Button
+        {
+            Style = (Style)FindResource("SongRowButton"),
+            Content = row,
+            Tag = path,
+            ToolTip = youTube ? "Ver su vídeo de YouTube" : null,
+        };
+        button.Click += SongRow_Click;
+        return button;
     }
 
     private void SongRow_Click(object sender, RoutedEventArgs e)

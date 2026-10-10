@@ -6,6 +6,16 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.7] - 2026-10-10
+
+### Añadido
+- **Botón «Inicio»** a la izquierda de las pestañas: vuelve al menú principal sin parar la música. Allí aparece un botón verde **«Volver al reproductor»** (con el nombre de la que suena) mientras haya canciones cargadas. Cargar archivos, «Tus canciones» o una lista de Spotify desde el menú también lleva de vuelta al reproductor.
+- **Buscador de canciones** en la barra superior (también con `Ctrl+F`): mientras se escribe, aparece una lista con las canciones cuyo nombre (o artista) contiene lo escrito, sin distinguir mayúsculas ni tildes. Primero las que empiezan por ello; la parte que coincide sale en morado y el artista a la derecha. Al pulsar una suena (o se ve su vídeo, si es de Spotify); Enter elige la primera y Esc borra la búsqueda. Busca también entre las guardadas en «Tus canciones» que aún no están cargadas, y las carga al elegirlas. Como mucho 50 resultados.
+
+### Cambiado
+- La barra superior pasa a tener dos filas: arriba Inicio, las pestañas, el buscador, Editar y el cambio de vista; debajo, añadir canciones, Tus canciones, Borrar y el número de canciones.
+- La fila de canción del detalle de artistas y géneros y la de los resultados del buscador salen de la misma función (`CreateSongRow`).
+
 ## [1.6] - 2026-10-10
 
 ### Añadido
