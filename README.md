@@ -6,9 +6,9 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.9.1-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.10-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
-![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
+![Plataforma](https://img.shields.io/badge/plataforma-Windows%20%7C%20Android-blue)
 
 ---
 
@@ -27,6 +27,7 @@
 - **Pestañas Artistas y Géneros**: las canciones se clasifican automáticamente con la [API de Deezer](https://developers.deezer.com/api) (gratuita, sin clave). Cada artista tiene su foto y cada género su imagen; al pulsar uno se ven sus canciones. Lo consultado se guarda en `%LOCALAPPDATA%\Launcherito\catalogo.json`, así que solo se pregunta una vez por canción.
 - **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás llevan una marca roja de YouTube y **suenan como cualquier otra canción, con el sonido de su vídeo de YouTube**: entran en la lista, se manejan con los mismos controles (anterior, siguiente, aleatorio, la barra) y en la vista original se ve el vídeo. Si una no tiene vídeo que se pueda ver dentro de la aplicación, se pasa a la siguiente. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
 - **Tus canciones**: todo lo que cargas (`.mp3` y listas de Spotify) se guarda solo en `%LOCALAPPDATA%\Launcherito\canciones.json`. Al abrir el programa, el botón *Tus canciones* las vuelve a cargar todas, y *Borrar canciones* deja elegir con casillas cuáles quitar (los archivos `.mp3` del PC no se tocan).
+- **Versión para Android**: la misma aplicación en el móvil, con todo lo anterior (mosaico, vista original con el vídeo, artistas y géneros, listas de Spotify, tus canciones y buscador). La música sigue sonando con la pantalla apagada, con controles en la notificación, en la pantalla de bloqueo y en los auriculares. En el modo edición las portadas se mueven manteniéndolas pulsadas. Una lista de Spotify se puede compartir directamente desde la app de Spotify.
 - **Inicio y buscador**: el botón *Inicio* vuelve al menú principal sin parar la música (y *Volver al reproductor* regresa). El buscador de arriba (o `Ctrl+F`) encuentra canciones por su nombre o su artista, sin importar mayúsculas ni tildes; al pulsar una, suena.
 
 ## 🚀 Características previstas
@@ -75,6 +76,7 @@
 | **1.8** | Vista original con el vídeo de YouTube de la canción, manejado con los controles del programa ✅ |
 | **1.9** | Las canciones de Spotify suenan en el reproductor con su vídeo de YouTube ✅ |
 | **1.9.1** | Marca de procedencia en cada portada: tus .mp3 en morado, las de Spotify en verde ✅ |
+| **1.10** | Versión para Android, con música en segundo plano y controles en la notificación ✅ |
 | 2.0 | Menú de carga: una canción, varias o una carpeta entera |
 | 2.1 | Sistema de temas y personalización |
 | 2.2 | Visualizador y color dinámico |
@@ -87,6 +89,15 @@
 1. Ve a [Releases](https://github.com/sergio120602/Proyectito_Launcherito/releases) y descarga el `.zip` de la última versión.
 2. Descomprímelo y abre `Launcherito.exe`. No necesita instalación ni tener .NET instalado.
 3. También puedes abrir un `.mp3` directamente con *clic derecho → Abrir con → Launcherito.exe*.
+
+### Android
+1. Descarga el `.apk` de la última versión en [Releases](https://github.com/sergio120602/Proyectito_Launcherito/releases) e instálalo en el móvil (Android 8 o posterior; hay que permitir instalar apps de origen desconocido).
+2. Para compilarlo: abre la carpeta `android` en [Android Studio](https://developer.android.com/studio) y pulsa ▶, o desde la terminal:
+
+```bash
+cd Proyectito_Launcherito/android
+./gradlew assembleRelease   # genera app/build/outputs/apk/release/app-release.apk
+```
 
 ### Opción 2: compilar desde el código
 Requisitos: [.NET 10 SDK](https://dotnet.microsoft.com/download) en Windows.
@@ -102,6 +113,7 @@ dotnet publish -c Release -o ../../publish   # generar publish/Launcherito.exe
 - **C# / WPF** sobre **.NET 10**
 - [TagLibSharp](https://github.com/mono/taglib-sharp) para leer metadatos y carátulas
 - [WebView2](https://learn.microsoft.com/microsoft-edge/webview2/) para ver los vídeos de YouTube dentro de las portadas
+- **Android**: Kotlin y [Jetpack Compose](https://developer.android.com/compose), [Media3 ExoPlayer](https://developer.android.com/media/media3) para los `.mp3` y la notificación, [Coil](https://coil-kt.github.io/coil/) para las portadas, [OkHttp](https://square.github.io/okhttp/) para Deezer, Spotify y YouTube, y un WebView para los vídeos
 
 ## 🔖 Control de versiones
 

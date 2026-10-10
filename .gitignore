@@ -25,3 +25,9 @@ obj/
 publish/
 /Launcherito.exe
 *.user
+
+# Android
+.gradle/
+.kotlin/
+local.properties
+*.apk

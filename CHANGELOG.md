@@ -6,6 +6,27 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.10] - 2026-10-10
+
+### Añadido
+- **Versión para Android** en la carpeta `android` (Android 8 o posterior), con lo mismo que la de Windows: vista mosaico con los controles dentro de la portada que suena, **vista original** con el vídeo de YouTube de la canción (botón «Vista original» / «Vista mosaico»), pestañas Artistas y Géneros con Deezer, listas y álbumes de Spotify, «Tus canciones», «Borrar canciones», buscador y modo edición del mosaico.
+- **Música en segundo plano**: los `.mp3` siguen sonando con la app cerrada o la pantalla apagada, con una notificación con la carátula, pausa, anterior y siguiente (que siguen el orden de la lista de Launcherito). También en la pantalla de bloqueo y con los botones de los auriculares; la música se pausa al desconectarlos.
+- **Compartir desde Spotify**: al compartir una lista o un álbum desde la app de Spotify y elegir Launcherito, se abre el cuadro de la lista con el enlace ya puesto.
+- *Abrir con → Launcherito* con un `.mp3` del móvil.
+
+### Cambiado (respecto a Windows)
+- Las canciones se eligen con el selector de archivos de Android y se identifican por su dirección `content://`; la app guarda el permiso para volver a leerlas al abrirse de nuevo.
+- Modo edición: las portadas se mueven **manteniéndolas pulsadas** (arrastrar sin más desplaza el mosaico) y el botón para salir se llama «Listo».
+- En el móvil caben 3 portadas por fila; la que suena ocupa todo el ancho para que quepan los controles. El título de cada portada se ve siempre (no hay «pasar el ratón»).
+- El botón Atrás deshace paso a paso: el buscador, la edición, el artista o género abierto, la pestaña y, por último, vuelve al menú principal.
+
+### Técnico
+- Kotlin, Jetpack Compose y Media3 (ExoPlayer en un `MediaSessionService`). La lógica de `MainWindow.xaml.cs` está en `LauncheritoViewModel`; `Playlist`, `SongLibrary`, `MusicCatalog`, `SpotifyLibrary`, `YouTubeLinks` y `MosaicArrangement` son la traducción directa de las clases de C#.
+- Las carátulas las carga Coil con un `Fetcher` propio (`SongCover`) que lee la imagen del `.mp3` o de la caché de Spotify, solo para las portadas cercanas a la pantalla.
+- `YouTubeVideo` usa un WebView con la misma página que en Windows; como un WebView no se puede hacer transparente, mientras no debe verse queda tapado por la carátula (o por la pantalla, en el hueco oculto).
+- La versión de la app de Android sale del archivo `VERSION`.
+- Pendiente de probar en un móvil real: el vídeo de YouTube (el emulador no decodifica VP9) y si las canciones de Spotify siguen sonando con la app en segundo plano.
+
 ## [1.9.1] - 2026-10-10
 
 ### Añadido
