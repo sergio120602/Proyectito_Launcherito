@@ -1,8 +1,12 @@
+<p align="center">
+  <img src="Launcherito_logo.png" alt="Logo de Launcherito" width="420">
+</p>
+
 # 🎵 Launcherito
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.3-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.4-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -20,7 +24,7 @@
 - Anterior / siguiente, modo aleatorio (activado por defecto) u orden alfabético, y paso automático a la siguiente canción.
 - Las portadas del mosaico se cargan en segundo plano solo cuando se ven, para que una biblioteca grande no dispare la memoria.
 - **Pestañas Artistas y Géneros**: las canciones se clasifican automáticamente con la [API de Deezer](https://developers.deezer.com/api) (gratuita, sin clave). Cada artista tiene su foto y cada género su imagen; al pulsar uno se ven sus canciones. Lo consultado se guarda en `%LOCALAPPDATA%\Launcherito\catalogo.json`, así que solo se pregunta una vez por canción.
-- **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás suenan con el fragmento de 30 s de Spotify. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
+- **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás llevan una marca roja de YouTube: **al pulsarlas, su vídeo de YouTube se carga dentro de la propia portada**, que se ve en grande (y se pausa lo que esté sonando). Si un vídeo no se deja ver fuera de YouTube, se abre en el navegador. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
 
 ## 🚀 Características previstas
 
@@ -61,11 +65,12 @@
 | **1.2** | Pestañas Canciones / Artistas / Géneros: clasificación con la API de Deezer y fotos de cada artista y género ✅ |
 | **1.2.1** | La ventana no se congela al cambiar de canción y menos memoria en las vistas que no se ven ✅ |
 | **1.3** | Listas y álbumes de Spotify desde un enlace, con sus portadas y fragmentos; las que tienes en .mp3 suenan enteras ✅ |
-| 1.4 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
-| 1.5 | Sistema de temas y personalización |
-| 1.6 | Visualizador y color dinámico |
-| 1.7 | Ecualizador, atajos globales y mini‑reproductor |
-| 1.8 | Letras sincronizadas y estadísticas |
+| **1.4** | El vídeo de YouTube de las canciones de Spotify se ve dentro de su portada ✅ |
+| 1.5 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
+| 1.6 | Sistema de temas y personalización |
+| 1.7 | Visualizador y color dinámico |
+| 1.8 | Ecualizador, atajos globales y mini‑reproductor |
+| 1.9 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 
@@ -87,6 +92,7 @@ dotnet publish -c Release -o ../../publish   # generar publish/Launcherito.exe
 ## 🛠️ Tecnología
 - **C# / WPF** sobre **.NET 10**
 - [TagLibSharp](https://github.com/mono/taglib-sharp) para leer metadatos y carátulas
+- [WebView2](https://learn.microsoft.com/microsoft-edge/webview2/) para ver los vídeos de YouTube dentro de las portadas
 
 ## 🔖 Control de versiones
 

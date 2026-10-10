@@ -10,7 +10,8 @@ namespace Launcherito;
 /// <summary>
 /// Animaciones del mosaico: cada canción nueva entra con una animación elegida al azar y las portadas
 /// que ya estaban se desplazan hasta su nuevo sitio en lugar de saltar. Las nuevas entran en tandas de
-/// 10: mientras esperan están ocultas y sin animación en marcha. Al terminar, cada tesela suelta sus
+/// 10: mientras esperan están ocultas y sin animación en marcha. Pasadas las 20 primeras, el resto
+/// aparece de golpe con un fundido rápido. Al terminar, cada tesela suelta sus
 /// transformaciones y relojes, así que no queda nada en memoria.
 /// </summary>
 internal sealed class TileAnimator
@@ -25,6 +26,10 @@ internal sealed class TileAnimator
     private const int WaveSize = 10;
     private const double WaveStepMs = 150;
     private const double LongestIntroMs = 900;   // la entrada más larga (Drop), sin ralentizar
+    // Solo las 20 primeras entran con su animación; las demás aparecen todas a la vez con un fundido
+    // rápido (sin ralentizar), para no tener que esperar tanda tras tanda con listas largas.
+    private const int AnimatedIntros = 20;
+    private const double QuickIntroMs = 150;
 
     // Rutas a las transformaciones del TransformGroup que monta Prepare (escala, sesgo, giro, traslación).
     private const string ScaleX = "(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)";
@@ -41,6 +46,7 @@ internal sealed class TileAnimator
     private readonly HashSet<MosaicTile> _waiting = new();   // nuevas, ocultas hasta que les toque su tanda
     private readonly DispatcherTimer _waveTimer = new();
     private int _lastIntro = -1;
+    private int _introsLeft;   // entradas animadas que quedan antes de soltar el resto de golpe
 
     public TileAnimator(ScrollViewer viewer, MosaicPanel panel)
     {
@@ -87,7 +93,12 @@ internal sealed class TileAnimator
 
         // Si ya hay tandas en marcha, las nuevas se suman a la cola; si no, empieza la primera,
         // alrededor de la canción que suena (el mosaico se desplaza enseguida hasta ella).
-        TimeSpan? impact = _waveTimer.IsEnabled ? null : NextWave(from: active);
+        TimeSpan? impact = null;
+        if (!_waveTimer.IsEnabled)
+        {
+            _introsLeft = AnimatedIntros;
+            impact = NextWave(from: active);
+        }
 
         if (oldSlots is null)
             return;
@@ -126,14 +137,21 @@ internal sealed class TileAnimator
             return null;
         }
 
+        if (_introsLeft <= 0)
+        {
+            ShowRest();
+            return null;
+        }
+
         var anchor = from?.Parent == _panel
             ? Center(LayoutInformation.GetLayoutSlot(from))
             : new Point(_panel.ActualWidth / 2, _viewer.VerticalOffset + _viewer.ViewportHeight / 2);
         var wave = _waiting
             .Select(tile => (Tile: tile, Slot: LayoutInformation.GetLayoutSlot(tile)))
             .OrderBy(item => (Center(item.Slot) - anchor).LengthSquared)
-            .Take(WaveSize)
+            .Take(Math.Min(WaveSize, _introsLeft))
             .ToList();
+        _introsLeft -= wave.Count;
 
         // Los tiempos de las animaciones se escriben sin ralentizar: se divide entre Slowdown.
         var step = TimeSpan.FromMilliseconds(WaveStepMs / Slowdown);
@@ -153,6 +171,32 @@ internal sealed class TileAnimator
             _waveTimer.Start();
         }
         return impact;
+    }
+
+    /// <summary>
+    /// Muestra de golpe todas las que esperan: las que están en pantalla o cerca con un fundido rápido,
+    /// las demás directamente (no se ven, así que animarlas solo gastaría).
+    /// </summary>
+    private void ShowRest()
+    {
+        double top = _viewer.VerticalOffset - _viewer.ViewportHeight;
+        double bottom = _viewer.VerticalOffset + _viewer.ViewportHeight * 2;
+        foreach (var tile in _waiting)
+        {
+            var slot = LayoutInformation.GetLayoutSlot(tile);
+            if (slot.Bottom <= top || slot.Top >= bottom)
+            {
+                tile.ClearValue(UIElement.OpacityProperty);
+                continue;
+            }
+            var sb = Prepare(tile, new Point(0.5, 0.5));
+            sb.SpeedRatio = 1;
+            Add(sb, Opacity, TimeSpan.Zero, 0, new K(QuickIntroMs, 1));
+            Add(sb, ScaleX, TimeSpan.Zero, 0.9, new K(QuickIntroMs, 1, Out(new CubicEase())));
+            Add(sb, ScaleY, TimeSpan.Zero, 0.9, new K(QuickIntroMs, 1, Out(new CubicEase())));
+            Start(tile, sb, zIndex: 0);
+        }
+        _waiting.Clear();
     }
 
     private static Point Center(Rect slot) => new(slot.X + slot.Width / 2, slot.Y + slot.Height / 2);

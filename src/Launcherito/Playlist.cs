@@ -59,7 +59,7 @@ public sealed class Playlist
         if (added > 0)
         {
             string? current = Current;
-            _songs.Sort((a, b) => NameComparer.Compare(SongInfo.FallbackTitle(a), SongInfo.FallbackTitle(b)));
+            _songs.Sort(CompareTitles);
             RebuildOrder(current);
         }
         return added;
@@ -119,6 +119,10 @@ public sealed class Playlist
             _position = 0;
         return Current;
     }
+
+    /// <summary>Orden alfabético por título, el mismo que el del mosaico.</summary>
+    public static int CompareTitles(string a, string b) =>
+        NameComparer.Compare(SongInfo.FallbackTitle(a), SongInfo.FallbackTitle(b));
 
     private string? Move(int step)
     {

@@ -67,12 +67,12 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
 
     /// <summary>
     /// Canción de Spotify: los datos ya se conocen y la portada se descarga (o sale de la caché). El
-    /// artista lleva la marca del fragmento para que se vea en el mosaico y en el reproductor.
+    /// artista lleva la marca de YouTube para que se vea en el mosaico, porque al pulsarla se abre su vídeo.
     /// </summary>
     private static SongInfo ReadSpotify(SpotifyTrack track, int maxCoverSize, int previewSize)
     {
         byte[]? coverData = maxCoverSize > 0 ? SpotifyLibrary.GetCoverData(track) : null;
-        return new SongInfo(track.Title, $"{track.Artists}  ·  fragmento de Spotify (30 s)",
+        return new SongInfo(track.Title, $"{track.Artists}  ·  ver en YouTube",
             coverData is null ? null : LoadImage(coverData, maxCoverSize))
         {
             Preview = coverData is null || previewSize <= 0 ? null : LoadImage(coverData, previewSize),

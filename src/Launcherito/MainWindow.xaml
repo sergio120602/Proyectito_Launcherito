@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Launcherito"
-        Title="Launcherito" Width="1000" Height="760" MinWidth="460" MinHeight="600"
+        Title="Launcherito" Icon="Launcherito.ico" Width="1000" Height="760" MinWidth="460" MinHeight="600"
         Background="Black" WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI" Foreground="White">
 
@@ -230,6 +230,31 @@
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- X redonda para cerrar el vídeo de YouTube de una portada -->
+        <Style x:Key="VideoCloseButton" TargetType="Button">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#B3000000"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="15">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E6000000"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -468,7 +493,7 @@
                 <StackPanel>
                     <TextBlock Text="Añadir lista de Spotify" FontSize="22" FontWeight="SemiBold"/>
                     <TextBlock Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
-                               Text="Pega el enlace de una lista pública o de un álbum (Compartir → Copiar enlace). Se cargan hasta 100 canciones con su portada. Las que ya tengas en .mp3 suenan enteras; las demás, con el fragmento de 30 s que da Spotify."/>
+                               Text="Pega el enlace de una lista pública o de un álbum (Compartir → Copiar enlace). Se cargan hasta 100 canciones con su portada. Las que ya tengas en .mp3 suenan enteras; las demás, al pulsarlas, abren su vídeo en YouTube."/>
                     <TextBox x:Name="SpotifyLinkBox" Margin="0,18,0,0" Padding="10,8" FontSize="14"
                              Background="#0E0E0E" Foreground="White" CaretBrush="White" BorderBrush="#333333"
                              KeyDown="SpotifyLinkBox_KeyDown"/>

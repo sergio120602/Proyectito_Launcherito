@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 namespace Launcherito;
 
 /// <summary>Canción de una lista de Spotify. Dentro de Launcherito se identifica por <see cref="Key"/>.</summary>
-public sealed record SpotifyTrack(string Id, string Title, string Artists, TimeSpan Duration, string? PreviewUrl)
+public sealed record SpotifyTrack(string Id, string Title, string Artists, TimeSpan Duration)
 {
     public string Key => SpotifyLibrary.KeyPrefix + Id;
 
@@ -22,9 +22,9 @@ public sealed record SpotifyList(string Name, string Owner, IReadOnlyList<Spotif
 /// <summary>
 /// Lee listas públicas y álbumes de Spotify sin cuenta ni clave. La API oficial exige desde febrero
 /// de 2026 que el dueño de la app tenga Premium, así que se usa la página que Spotify ofrece para
-/// insertar listas en otras webs (trae título, artistas y un fragmento de 30 s de cada canción, hasta
-/// 100 canciones) y su servicio oEmbed para las portadas. Spotify no da el audio completo: si no se
-/// tiene el .mp3, suena el fragmento.
+/// insertar listas en otras webs (trae título y artistas de cada canción, hasta 100 canciones) y su
+/// servicio oEmbed para las portadas. Spotify no da el audio completo: si no se tiene el .mp3, la
+/// canción es un acceso directo a su vídeo de YouTube (<see cref="YouTubeLinks"/>).
 /// </summary>
 public static class SpotifyLibrary
 {
@@ -97,10 +97,7 @@ public static class SpotifyLibrary
                     uri[KeyPrefix.Length..],
                     Text(item, "title") ?? "Sin título",
                     Text(item, "subtitle") is { Length: > 0 } artists ? artists : SongInfo.UnknownArtist,
-                    TimeSpan.FromMilliseconds(item.TryGetProperty("duration", out var ms) && ms.TryGetInt64(out long d) ? d : 0),
-                    item.TryGetProperty("audioPreview", out var preview) && preview.ValueKind == JsonValueKind.Object
-                        ? Text(preview, "url")
-                        : null);
+                    TimeSpan.FromMilliseconds(item.TryGetProperty("duration", out var ms) && ms.TryGetInt64(out long d) ? d : 0));
                 Tracks[track.Key] = track;
                 tracks.Add(track);
             }

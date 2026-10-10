@@ -6,6 +6,23 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.4] - 2026-10-10
+
+### Añadido
+- **Vídeo de YouTube dentro de la portada**: al pulsar una canción de Spotify (en el mosaico o en Artistas y Géneros) su portada pasa a verse en grande y dentro se carga su vídeo de YouTube, que empieza solo. Lo que estuviera sonando se pausa. Una X en la esquina cierra el vídeo y la portada vuelve a su tamaño (`YouTubeVideo`).
+- El vídeo se busca en YouTube por artista y título, sin clave, y se recuerda mientras la aplicación está abierta (`YouTubeLinks`). Si el primer resultado no se deja ver fuera de YouTube, se prueban los siguientes (hasta 5); si ninguno se puede, o no hay conexión, se abre en el navegador. Los enlaces del propio reproductor («Ver en YouTube») también se abren en el navegador.
+- Las portadas de Spotify llevan una marca roja de YouTube en la esquina, y en las listas de Artistas y Géneros un icono propio.
+- **Logo de Launcherito**: es el icono del `.exe`, de la barra de tareas y de la ventana, y encabeza el README.
+
+### Cambiado
+- Las canciones de Spotify ya no suenan con el fragmento de 30 s ni entran en la lista de reproducción: anterior, siguiente y el paso automático solo recorren los `.mp3`.
+- Ya se añaden también las canciones que Spotify no daba con fragmento.
+- Al reproducir una canción, cambiar a la vista original o a otra pestaña, el vídeo se cierra y se libera el navegador interno, que ocupa bastante memoria.
+
+### Técnico
+- WebView2 (el Edge que trae Windows 11) en su versión de composición (`WebView2CompositionControl`): se dibuja como un elemento más de WPF, así que respeta las esquinas redondeadas, el desplazamiento y las animaciones del mosaico. Por eso el proyecto apunta ahora a `net10.0-windows10.0.17763.0`.
+- Los datos del navegador interno se guardan en `%LOCALAPPDATA%\Launcherito\WebView2`, no junto al `.exe`.
+
 ## [1.3] - 2026-10-09
 
 ### Añadido

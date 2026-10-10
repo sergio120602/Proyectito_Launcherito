@@ -25,6 +25,7 @@ public sealed class MosaicTile : Border
     private static readonly SemaphoreSlim Loader = new(4);
     private static readonly Brush EmptyBackground = Frozen(new SolidColorBrush(Color.FromRgb(0x15, 0x15, 0x15)));
     private static readonly Brush PlaceholderBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)));
+    private static readonly Brush YouTubeRed = Frozen(new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0x33)));
     private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
     private static readonly Brush Shade = Frozen(new LinearGradientBrush(
         Color.FromArgb(0x00, 0, 0, 0), Color.FromArgb(0xE6, 0, 0, 0), 90));
@@ -36,6 +37,8 @@ public sealed class MosaicTile : Border
     private Border? _activeOverlay;
     private TextBlock? _activeTitle;
     private TextBlock? _activeArtist;
+    private Border? _youTubeBadge;
+    private Grid? _videoHost;
     private Brush? _sharpCover;
     private Brush? _blurredCover;
     private bool _isAnimating;
@@ -62,16 +65,49 @@ public sealed class MosaicTile : Border
             VerticalAlignment = VerticalAlignment.Center,
         };
         _root.Children.Add(_placeholder);
+        if (SpotifyLibrary.IsSpotify(path))
+        {
+            _youTubeBadge = YouTubeBadge();
+            _root.Children.Add(_youTubeBadge);
+        }
         Child = _root;
     }
 
+    /// <summary>Marca roja con el triángulo de reproducir: al pulsar la portada se ve su vídeo de YouTube.</summary>
+    private static Border YouTubeBadge() => new()
+    {
+        Width = 34,
+        Height = 24,
+        Margin = new Thickness(10),
+        CornerRadius = new CornerRadius(7),
+        Background = YouTubeRed,
+        HorizontalAlignment = HorizontalAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Top,
+        IsHitTestVisible = false,
+        Child = new TextBlock
+        {
+            Text = "",   // reproducir
+            FontFamily = IconFont,
+            FontSize = 11,
+            Foreground = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        },
+    };
+
     /// <summary>Se pulsa una tesela que no es la que está sonando.</summary>
     public event EventHandler? Selected;
+
+    /// <summary>Se pulsa la X del vídeo.</summary>
+    public event EventHandler? VideoClosed;
 
     public string SongPath { get; }
     public string Title { get; private set; }
     public string Artist { get; private set; } = "";
     public bool IsActive { get; private set; }
+
+    /// <summary>Se está viendo un vídeo de YouTube dentro de la portada.</summary>
+    public bool HasVideo => _videoHost is not null;
 
     /// <summary>Hueco dentro de la portada activa donde se colocan la barra y los botones.</summary>
     public Decorator? ControlsHost { get; private set; }
@@ -146,7 +182,8 @@ public sealed class MosaicTile : Border
         // De vuelta en el hilo de la interfaz.
         Title = info.Title;
         Artist = info.Artist;
-        ToolTip = $"{Title} — {Artist}";
+        if (!HasVideo)
+            ToolTip = $"{Title} — {Artist}";
         UpdateTexts();
 
         if (version != _coverVersion || info.Cover is null)
@@ -222,6 +259,49 @@ public sealed class MosaicTile : Border
         };
     }
 
+    /// <summary>Pone el vídeo encima de la carátula, recortado con las mismas esquinas redondeadas, y una X para cerrarlo.</summary>
+    public void ShowVideo(UIElement video)
+    {
+        HideVideo();
+        HideHover();
+        ToolTip = null;
+        Cursor = Cursors.Arrow;
+        if (_youTubeBadge is not null)
+            _youTubeBadge.Visibility = Visibility.Collapsed;
+
+        var close = new Button
+        {
+            Style = (Style)FindResource("VideoCloseButton"),
+            Content = "\uE711",   // cerrar
+            ToolTip = "Cerrar el vídeo",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(10),
+        };
+        close.Click += (_, _) => VideoClosed?.Invoke(this, EventArgs.Empty);
+
+        _videoHost = new Grid();
+        _videoHost.Children.Add(video);
+        _videoHost.Children.Add(close);
+        _videoHost.SizeChanged += (_, e) => _videoHost.Clip = new RectangleGeometry(
+            new Rect(e.NewSize), Radius, Radius);
+        _root.Children.Add(_videoHost);
+    }
+
+    /// <summary>Quita el vídeo (quien lo creó lo libera) y vuelve a mostrar la carátula.</summary>
+    public void HideVideo()
+    {
+        if (_videoHost is null)
+            return;
+        _videoHost.Children.Clear();
+        _root.Children.Remove(_videoHost);
+        _videoHost = null;
+        ToolTip = $"{Title} — {Artist}";
+        Cursor = Cursors.Hand;
+        if (_youTubeBadge is not null)
+            _youTubeBadge.Visibility = Visibility.Visible;
+    }
+
     private void UpdateTexts()
     {
         if (_activeTitle is not null)
@@ -236,7 +316,7 @@ public sealed class MosaicTile : Border
     protected override void OnMouseEnter(MouseEventArgs e)
     {
         base.OnMouseEnter(e);
-        if (IsActive)
+        if (IsActive || HasVideo)
             return;
 
         if (_hoverOverlay is null)
@@ -278,7 +358,7 @@ public sealed class MosaicTile : Border
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
-        if (!IsActive)
+        if (!IsActive && !HasVideo)
             Selected?.Invoke(this, EventArgs.Empty);
     }
 
