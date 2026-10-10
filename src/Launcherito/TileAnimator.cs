@@ -48,6 +48,9 @@ internal sealed class TileAnimator
     private int _lastIntro = -1;
     private int _introsLeft;   // entradas animadas que quedan antes de soltar el resto de golpe
 
+    /// <summary>Portada que el usuario lleva cogida: sigue al ratón, así que no se anima.</summary>
+    public MosaicTile? Held { get; set; }
+
     public TileAnimator(ScrollViewer viewer, MosaicPanel panel)
     {
         _viewer = viewer;
@@ -108,7 +111,7 @@ internal sealed class TileAnimator
         bool InView(Rect slot) => slot.Bottom > top && slot.Top < bottom;
         foreach (var (tile, old) in oldSlots)
         {
-            if (tile == skip || tile.Parent != _panel || _waiting.Contains(tile))
+            if (tile == skip || tile == Held || tile.Parent != _panel || _waiting.Contains(tile))
                 continue;
             var now = LayoutInformation.GetLayoutSlot(tile);
             if (old != now && !old.IsEmpty && (InView(old) || InView(now)))
@@ -200,6 +203,14 @@ internal sealed class TileAnimator
     }
 
     private static Point Center(Rect slot) => new(slot.X + slot.Width / 2, slot.Y + slot.Height / 2);
+
+    /// <summary>Lleva una portada desde <paramref name="from"/> (donde se ha soltado) hasta su sitio.</summary>
+    public void Settle(MosaicTile tile, Rect from)
+    {
+        var now = LayoutInformation.GetLayoutSlot(tile);
+        if (from != now && !now.IsEmpty)
+            PlayMove(tile, from, now, impact: null, zIndex: 1);   // por encima mientras vuelve
+    }
 
     /// <summary>Detiene las tandas pendientes (al cerrar la ventana).</summary>
     public void Stop() => _waveTimer.Stop();
@@ -293,7 +304,7 @@ internal sealed class TileAnimator
     }
 
     /// <summary>Lleva una tesela de su sitio (y tamaño) anterior al nuevo.</summary>
-    private void PlayMove(MosaicTile tile, Rect old, Rect now, TimeSpan? impact)
+    private void PlayMove(MosaicTile tile, Rect old, Rect now, TimeSpan? impact, int zIndex = 0)
     {
         var sb = Prepare(tile, new Point(0, 0));
         double dx = old.X - now.X;
@@ -320,7 +331,7 @@ internal sealed class TileAnimator
             Add(sb, ScaleY, TimeSpan.Zero, sy, new K(450, 1, ease));
         }
 
-        Start(tile, sb, zIndex: 0);
+        Start(tile, sb, zIndex);
     }
 
     /// <summary>Avanza de golpe en golpe con parones, se pasa un poco y se asienta.</summary>

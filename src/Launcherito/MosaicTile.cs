@@ -26,6 +26,8 @@ public sealed class MosaicTile : Border
     private static readonly Brush EmptyBackground = Frozen(new SolidColorBrush(Color.FromRgb(0x15, 0x15, 0x15)));
     private static readonly Brush PlaceholderBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)));
     private static readonly Brush YouTubeRed = Frozen(new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0x33)));
+    private static readonly Brush GripBackground = Frozen(new SolidColorBrush(Color.FromArgb(0xB0, 0, 0, 0)));
+    private static readonly Geometry GripLines = FrozenGeometry("M 17,7 L 7,17 M 17,12 L 12,17");
     private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
     private static readonly Brush Shade = Frozen(new LinearGradientBrush(
         Color.FromArgb(0x00, 0, 0, 0), Color.FromArgb(0xE6, 0, 0, 0), 90));
@@ -42,6 +44,7 @@ public sealed class MosaicTile : Border
     private Brush? _sharpCover;
     private Brush? _blurredCover;
     private bool _isAnimating;
+    private bool _isEditable;
     private bool _coverWanted;
     private int _coverVersion;   // invalida cargas en curso cuando la carátula se suelta
     private int _coverPixels;    // ancho con el que se ha decodificado la carátula nítida actual
@@ -105,6 +108,38 @@ public sealed class MosaicTile : Border
     public string Title { get; private set; }
     public string Artist { get; private set; } = "";
     public bool IsActive { get; private set; }
+
+    /// <summary>Celdas de lado que ocupa la portada: la elegida por el usuario o la automática.</summary>
+    public int BaseSpan { get; set; } = 1;
+
+    /// <summary>La que suena y la del vídeo ocupan al menos 2x2, para que quepan los controles o el vídeo.</summary>
+    public int MinSpan => IsActive || HasVideo ? 2 : 1;
+
+    /// <summary>Celdas de lado con las que se coloca en el mosaico.</summary>
+    public int EffectiveSpan => Math.Max(MinSpan, BaseSpan);
+
+    /// <summary>Tirador de la esquina para agrandar o encoger la portada (se crea la primera vez que se pasa el ratón).</summary>
+    public FrameworkElement? ResizeGrip { get; private set; }
+
+    /// <summary>
+    /// Modo edición: la portada se puede arrastrar (cursor de mover) y lleva siempre a la vista el
+    /// tirador de la esquina. Fuera de él se comporta como siempre.
+    /// </summary>
+    public bool IsEditable
+    {
+        get => _isEditable;
+        set
+        {
+            if (_isEditable == value)
+                return;
+            _isEditable = value;
+            if (value)
+                ResizeGrip ??= BuildResizeGrip();
+            if (ResizeGrip is not null)
+                ResizeGrip.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+            UpdateCursor();
+        }
+    }
 
     /// <summary>Se está viendo un vídeo de YouTube dentro de la portada.</summary>
     public bool HasVideo => _videoHost is not null;
@@ -218,7 +253,7 @@ public sealed class MosaicTile : Border
             return;
         IsActive = active;
         ToolTip = active ? null : $"{Title} — {Artist}";
-        Cursor = active ? Cursors.Arrow : Cursors.Hand;
+        UpdateCursor();
 
         if (active)
         {
@@ -265,7 +300,6 @@ public sealed class MosaicTile : Border
         HideVideo();
         HideHover();
         ToolTip = null;
-        Cursor = Cursors.Arrow;
         if (_youTubeBadge is not null)
             _youTubeBadge.Visibility = Visibility.Collapsed;
 
@@ -286,6 +320,7 @@ public sealed class MosaicTile : Border
         _videoHost.SizeChanged += (_, e) => _videoHost.Clip = new RectangleGeometry(
             new Rect(e.NewSize), Radius, Radius);
         _root.Children.Add(_videoHost);
+        UpdateCursor();
     }
 
     /// <summary>Quita el vídeo (quien lo creó lo libera) y vuelve a mostrar la carátula.</summary>
@@ -297,10 +332,14 @@ public sealed class MosaicTile : Border
         _root.Children.Remove(_videoHost);
         _videoHost = null;
         ToolTip = $"{Title} — {Artist}";
-        Cursor = Cursors.Hand;
+        UpdateCursor();
         if (_youTubeBadge is not null)
             _youTubeBadge.Visibility = Visibility.Visible;
     }
+
+    /// <summary>Mano para pulsar; flechas de mover en modo edición; flecha normal en la que suena o la del vídeo.</summary>
+    private void UpdateCursor() =>
+        Cursor = _isEditable ? Cursors.SizeAll : IsActive || HasVideo ? Cursors.Arrow : Cursors.Hand;
 
     private void UpdateTexts()
     {
@@ -328,7 +367,7 @@ public sealed class MosaicTile : Border
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                Margin = new Thickness(12, 28, 12, 10),
+                Margin = new Thickness(12, 28, 34, 10),   // a la derecha, sitio para el tirador
             };
             _hoverOverlay = new Border
             {
@@ -349,6 +388,34 @@ public sealed class MosaicTile : Border
         HideHover();
     }
 
+    /// <summary>Dos rayas en diagonal sobre un cuadrado oscuro, abajo a la derecha y por encima de todo (también del vídeo).</summary>
+    private FrameworkElement BuildResizeGrip()
+    {
+        var grip = new Border
+        {
+            Width = 24,
+            Height = 24,
+            Margin = new Thickness(0, 0, 4, 4),
+            CornerRadius = new CornerRadius(7),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Background = GripBackground,
+            Cursor = Cursors.SizeNWSE,
+            ToolTip = "Arrastra para cambiar el tamaño",
+            Child = new System.Windows.Shapes.Path
+            {
+                Data = GripLines,
+                Stroke = Brushes.White,
+                StrokeThickness = 2,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+            },
+        };
+        Panel.SetZIndex(grip, 10);
+        _root.Children.Add(grip);
+        return grip;
+    }
+
     private void HideHover()
     {
         if (_hoverOverlay is not null)
@@ -360,6 +427,13 @@ public sealed class MosaicTile : Border
         base.OnMouseLeftButtonUp(e);
         if (!IsActive && !HasVideo)
             Selected?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static Geometry FrozenGeometry(string data)
+    {
+        var geometry = Geometry.Parse(data);
+        geometry.Freeze();
+        return geometry;
     }
 
     private static Brush Frozen(Brush brush)

@@ -6,7 +6,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.4-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.5-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -22,6 +22,7 @@
 - **Vista original**: una sola portada grande con el reproductor debajo. Se cambia entre las dos vistas con el botón de arriba a la derecha.
 - Carga de varios `.mp3` a la vez (o *Abrir con → Launcherito*) y lista de reproducción sin límite.
 - Anterior / siguiente, modo aleatorio (activado por defecto) u orden alfabético, y paso automático a la siguiente canción.
+- **Modo edición del mosaico**: con el botón *Editar* (se queda en morado; para salir, *Dejar edición* en verde) las portadas se cogen y se llevan a otro sitio, y con el tirador de su esquina se agrandan o se encogen. Al agrandar una, las grandes que tapa se encogen; al encogerla, la siguiente crece y ocupa el hueco. El orden y los tamaños se guardan en `%LOCALAPPDATA%\Launcherito\mosaico.json`.
 - Las portadas del mosaico se cargan en segundo plano solo cuando se ven, para que una biblioteca grande no dispare la memoria.
 - **Pestañas Artistas y Géneros**: las canciones se clasifican automáticamente con la [API de Deezer](https://developers.deezer.com/api) (gratuita, sin clave). Cada artista tiene su foto y cada género su imagen; al pulsar uno se ven sus canciones. Lo consultado se guarda en `%LOCALAPPDATA%\Launcherito\catalogo.json`, así que solo se pregunta una vez por canción.
 - **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás llevan una marca roja de YouTube: **al pulsarlas, su vídeo de YouTube se carga dentro de la propia portada**, que se ve en grande (y se pausa lo que esté sonando). Si un vídeo no se deja ver fuera de YouTube, se abre en el navegador. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
@@ -66,11 +67,12 @@
 | **1.2.1** | La ventana no se congela al cambiar de canción y menos memoria en las vistas que no se ven ✅ |
 | **1.3** | Listas y álbumes de Spotify desde un enlace, con sus portadas y fragmentos; las que tienes en .mp3 suenan enteras ✅ |
 | **1.4** | El vídeo de YouTube de las canciones de Spotify se ve dentro de su portada ✅ |
-| 1.5 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
-| 1.6 | Sistema de temas y personalización |
-| 1.7 | Visualizador y color dinámico |
-| 1.8 | Ecualizador, atajos globales y mini‑reproductor |
-| 1.9 | Letras sincronizadas y estadísticas |
+| **1.5** | Modo edición: mover las portadas del mosaico y cambiar su tamaño, guardado entre sesiones ✅ |
+| 1.6 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
+| 1.7 | Sistema de temas y personalización |
+| 1.8 | Visualizador y color dinámico |
+| 1.9 | Ecualizador, atajos globales y mini‑reproductor |
+| 2.0 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 

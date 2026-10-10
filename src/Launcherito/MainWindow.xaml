@@ -113,6 +113,26 @@
             </Setter>
         </Style>
 
+        <!-- Píldora de color fijo (Editar en morado, Dejar edición en verde): al pasar el ratón se aclara. -->
+        <SolidColorBrush x:Key="EditGreen" Color="#22C55E"/>
+        <Style x:Key="ColorPillButton" TargetType="Button" BasedOn="{StaticResource PillButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Pestaña de la barra superior (Canciones / Artistas / Géneros). Tag="Active" la resalta. -->
         <Style x:Key="TabButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Muted}"/>
@@ -351,14 +371,35 @@
                     <TextBlock x:Name="SpotifyStatusText" FontSize="13" Foreground="{StaticResource SpotifyGreen}" Margin="16,0,0,0"/>
                     <TextBlock x:Name="CatalogStatusText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
                 </StackPanel>
-                <Button x:Name="ViewToggleButton" Grid.Column="2" Style="{StaticResource PillButton}"
-                        Click="ViewToggleButton_Click">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock x:Name="ViewToggleIcon" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                                   FontSize="14" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="ViewToggleText" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Modo edición del mosaico: Editar se queda en morado mientras está activo y aparece Dejar edición en verde -->
+                    <Button x:Name="EditButton" Style="{StaticResource ColorPillButton}" Background="#1C1C1C"
+                            Margin="0,0,8,0" Click="EditButton_Click"
+                            ToolTip="Mover las portadas y cambiar su tamaño">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE70F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="Editar" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="StopEditButton" Style="{StaticResource ColorPillButton}"
+                            Background="{StaticResource EditGreen}" Visibility="Collapsed"
+                            Margin="0,0,8,0" Click="StopEditButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="Dejar edición" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ViewToggleButton" Style="{StaticResource PillButton}"
+                            Click="ViewToggleButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ViewToggleIcon" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ViewToggleText" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </Grid>
 
             <!-- Vista mosaico: todas las canciones -->

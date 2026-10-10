@@ -6,6 +6,18 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.5] - 2026-10-10
+
+### Añadido
+- **Modo edición del mosaico**: botón «Editar» junto al cambio de vista. Mientras está activo se queda en morado y aparece «Dejar edición» en verde para salir; también se sale al cambiar a la vista original o a otra pestaña. Todo depende de una sola variable (`_isEditing`, en `SetEditing`).
+- En modo edición las portadas se **cogen y se arrastran** a otro sitio: siguen al ratón y las demás se apartan con su animación. Cerca del borde de arriba o de abajo el mosaico se desplaza solo. Un clic sin arrastrar no reproduce la canción, para no hacerlo sin querer.
+- Cada portada lleva un **tirador en la esquina** para agrandarla o encogerla de celda en celda. Al agrandarla, las grandes que quedan debajo pasan a ocupar una celda; al encogerla, la siguiente crece y ocupa el hueco. La que suena y la del vídeo no bajan de 2x2.
+- El orden y los tamaños elegidos se guardan en `%LOCALAPPDATA%\Launcherito\mosaico.json` y se mantienen al cerrar el programa. Las canciones nuevas se colocan al final.
+
+### Técnico
+- `MosaicPanel` coloca las portadas por un número de orden (`MosaicPanel.Order`) en vez de por su posición en el panel: se reordenan sin sacarlas, así el vídeo de YouTube no se recarga al mover su portada.
+- Nuevas clases `MosaicEditor` (arrastrar y redimensionar) y `MosaicArrangement` (guardar el orden y los tamaños).
+
 ## [1.4] - 2026-10-10
 
 ### Añadido
@@ -18,6 +30,7 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 - Las canciones de Spotify ya no suenan con el fragmento de 30 s ni entran en la lista de reproducción: anterior, siguiente y el paso automático solo recorren los `.mp3`.
 - Ya se añaden también las canciones que Spotify no daba con fragmento.
 - Al reproducir una canción, cambiar a la vista original o a otra pestaña, el vídeo se cierra y se libera el navegador interno, que ocupa bastante memoria.
+- Solo las 20 primeras portadas entran con su animación; las demás aparecen todas a la vez con un fundido rápido, así una lista larga no tarda en verse entera.
 
 ### Técnico
 - WebView2 (el Edge que trae Windows 11) en su versión de composición (`WebView2CompositionControl`): se dibuja como un elemento más de WPF, así que respeta las esquinas redondeadas, el desplazamiento y las animaciones del mosaico. Por eso el proyecto apunta ahora a `net10.0-windows10.0.17763.0`.

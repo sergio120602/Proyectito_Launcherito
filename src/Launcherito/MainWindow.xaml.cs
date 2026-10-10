@@ -18,6 +18,8 @@ public partial class MainWindow : Window
     private const string PauseIcon = "";
     private const int CoverDecodeSize = 640;
     private const double MinControlsWidth = 330;   // ancho que necesitan los botones sin reducirse
+    // Fondo del botón Editar fuera del modo edición (el mismo que el resto de píldoras).
+    private static readonly Brush EditIdle = new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1C));
 
     private readonly MediaPlayer _player = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
@@ -29,6 +31,11 @@ public partial class MainWindow : Window
     private MosaicTile? _activeTile;
     private bool _mosaicView;
     private readonly TileAnimator _animator;
+    private readonly MosaicEditor _editor;
+    private readonly MosaicArrangement _arrangement = new();
+    // Modo edición del mosaico: con él activo las portadas se mueven y cambian de tamaño. Todo lo
+    // demás (botones, cursor, tiradores, el editor) se pone según esta variable en SetEditing.
+    private bool _isEditing;
 
     private enum Section { Songs, Artists, Genres }
     private Section _section = Section.Songs;
@@ -59,6 +66,8 @@ public partial class MainWindow : Window
         // La versión sale de <Version> en el .csproj, así el título siempre coincide con el .exe.
         Title = $"Launcherito {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _animator = new TileAnimator(MosaicView, Mosaic);
+        _editor = new MosaicEditor(MosaicView, Mosaic, _animator);
+        _editor.Changed += Editor_Changed;
 
         _player.MediaOpened += Player_MediaOpened;
         _player.MediaEnded += Player_MediaEnded;
@@ -278,7 +287,7 @@ public partial class MainWindow : Window
         _video = video;
         _videoTile = tile;
         tile.ShowVideo(video.View);
-        MosaicPanel.SetSpan(tile, 2);
+        MosaicPanel.SetSpan(tile, tile.EffectiveSpan);
         _ = Dispatcher.BeginInvoke(() => tile.BringIntoView(), DispatcherPriority.Loaded);
 
         ids = await YouTubeLinks.FindVideosAsync(track);
@@ -317,7 +326,7 @@ public partial class MainWindow : Window
         {
             _videoTile = null;
             tile.HideVideo();
-            MosaicPanel.SetSpan(tile, SpanFor(Mosaic.Children.IndexOf(tile), tile));
+            MosaicPanel.SetSpan(tile, tile.EffectiveSpan);
         }
         _video?.Dispose();
         _video = null;
@@ -739,6 +748,24 @@ public partial class MainWindow : Window
 
     private void ViewToggleButton_Click(object sender, RoutedEventArgs e) => SetMosaicView(!_mosaicView);
 
+    private void EditButton_Click(object sender, RoutedEventArgs e) => SetEditing(!_isEditing);
+
+    private void StopEditButton_Click(object sender, RoutedEventArgs e) => SetEditing(false);
+
+    /// <summary>
+    /// Entra o sale del modo edición. Dentro, Editar se queda en morado, aparece Dejar edición en
+    /// verde y cada portada muestra su tirador; fuera, todo vuelve a ser como siempre.
+    /// </summary>
+    private void SetEditing(bool editing)
+    {
+        _isEditing = editing;
+        _editor.IsEditing = editing;
+        foreach (var tile in _tiles.Values)
+            tile.IsEditable = editing;
+        EditButton.Background = editing ? (Brush)FindResource("Accent") : EditIdle;
+        StopEditButton.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void SetMosaicView(bool mosaic)
     {
         _mosaicView = mosaic;
@@ -759,6 +786,10 @@ public partial class MainWindow : Window
         SingleView.Visibility = SingleViewVisible ? Visibility.Visible : Visibility.Collapsed;
         CategoryView.Visibility = songs ? Visibility.Collapsed : Visibility.Visible;
         ViewToggleButton.Visibility = songs ? Visibility.Visible : Visibility.Collapsed;
+        // Solo se edita el mosaico: al salir de él se deja la edición.
+        EditButton.Visibility = MosaicVisible ? Visibility.Visible : Visibility.Collapsed;
+        if (!MosaicVisible && _isEditing)
+            SetEditing(false);
         // El botón muestra la vista a la que se cambia al pulsarlo.
         ViewToggleIcon.Text = _mosaicView ? "\uE8D6" : "\uE8A9";
         ViewToggleText.Text = _mosaicView ? "Vista original" : "Vista mosaico";
@@ -788,12 +819,13 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Crea o quita teselas para que el mosaico coincida con la lista de reproducción y los accesos
-    /// directos de Spotify, todo en orden alfabético.
+    /// directos de Spotify: en orden alfabético o en el que haya elegido el usuario arrastrándolas.
     /// </summary>
     private void SyncMosaic()
     {
         var songs = _playlist.Songs.Concat(_shortcuts).ToList();
         songs.Sort(Playlist.CompareTitles);
+        songs = _arrangement.Arrange(songs);
         var present = new HashSet<string>(songs, StringComparer.OrdinalIgnoreCase);
         var oldSlots = _animator.CaptureSlots();   // para que las que se mueven no salten de sitio
         var added = new List<MosaicTile>();
@@ -823,10 +855,14 @@ public partial class MainWindow : Window
                 tile = new MosaicTile(songs[i]);
                 tile.Selected += Tile_Selected;
                 tile.VideoClosed += Tile_VideoClosed;
+                tile.IsEditable = _isEditing;
                 _tiles.Add(songs[i], tile);
                 added.Add(tile);
             }
-            MosaicPanel.SetSpan(tile, SpanFor(i, tile));
+            // Sin tamaño elegido, una de cada seis es grande.
+            tile.BaseSpan = _arrangement.SpanOf(songs[i]) ?? (i % 6 == 0 ? 2 : 1);
+            MosaicPanel.SetSpan(tile, tile.EffectiveSpan);
+            MosaicPanel.SetOrder(tile, i);
             Mosaic.Children.Add(tile);
         }
 
@@ -843,8 +879,12 @@ public partial class MainWindow : Window
         Mosaic.LayoutUpdated += onLayout;
     }
 
-    /// <summary>La canción que suena y la del vídeo ocupan 2x2; del resto, una de cada seis también es grande.</summary>
-    private static int SpanFor(int index, MosaicTile tile) => tile.IsActive || tile.HasVideo || index % 6 == 0 ? 2 : 1;
+    /// <summary>Se ha movido o cambiado de tamaño una portada: se guarda cómo ha quedado el mosaico.</summary>
+    private void Editor_Changed(object? sender, EventArgs e)
+    {
+        _arrangement.Remember(_editor.Ordered());
+        UpdateVisibleCovers();
+    }
 
     private void SetActiveTile(string path)
     {
@@ -852,7 +892,7 @@ public partial class MainWindow : Window
         {
             old.SetActive(false);
             old.SizeChanged -= ActiveTile_SizeChanged;
-            MosaicPanel.SetSpan(old, SpanFor(Mosaic.Children.IndexOf(old), old));
+            MosaicPanel.SetSpan(old, old.EffectiveSpan);
         }
 
         if (!_tiles.TryGetValue(path, out var tile))
@@ -862,7 +902,7 @@ public partial class MainWindow : Window
         {
             tile.SetActive(true);
             tile.SizeChanged += ActiveTile_SizeChanged;
-            MosaicPanel.SetSpan(tile, 2);
+            MosaicPanel.SetSpan(tile, tile.EffectiveSpan);
         }
 
         MoveControls();
