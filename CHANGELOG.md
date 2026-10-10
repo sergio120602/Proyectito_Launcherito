@@ -6,6 +6,19 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.8] - 2026-10-10
+
+### Añadido
+- **Vídeo de YouTube en la vista original**: en lugar de la carátula se ve el vídeo de la canción que suena, y el sonido sale del vídeo. Se maneja solo con los controles del programa: reproducir/pausar, la barra (también arrastrándola), anterior, siguiente y el paso automático al acabar. El vídeo no tiene controles de YouTube ni responde a los clics.
+- Mientras se ve el vídeo, el marco pasa de cuadrado a 16:9 y la barra muestra la duración del vídeo. Mientras se busca se ve la carátula con «Buscando el vídeo en YouTube…».
+- Al cambiar entre la vista original y el mosaico la canción sigue por el mismo segundo: del `.mp3` al vídeo y del vídeo al `.mp3`.
+- Si la canción no tiene vídeo que se pueda ver dentro de la aplicación, o no hay conexión, se queda la carátula y suena el `.mp3`, con un aviso arriba. Se buscan hasta 5 vídeos por canción, por artista y título.
+
+### Técnico
+- `YouTubeVideo` tiene un modo controlado (`controlled: true`): sin controles de YouTube, órdenes `Play`, `Pause`, `Seek`, `Load` (otra canción en el mismo navegador, sin crear otro) y `Hold`, y avisos `Playing`, `Ended` y `Progress` (cada 250 ms). Las órdenes que llegan antes de que cargue la página se guardan y se envían después.
+- `YouTubeLinks.FindVideosAsync` sirve para cualquier canción (artista y título), no solo para las de Spotify.
+- Al salir de la vista original el navegador del vídeo se libera.
+
 ## [1.7] - 2026-10-10
 
 ### Añadido

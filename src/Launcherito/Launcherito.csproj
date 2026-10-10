@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <Version>1.7.0</Version>
+    <Version>1.8.0</Version>
     <Product>Launcherito</Product>
     <AssemblyTitle>Launcherito</AssemblyTitle>
     <!-- Logo del programa: icono del .exe, de la barra de tareas y de la ventana -->

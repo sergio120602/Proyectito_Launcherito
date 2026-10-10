@@ -58,6 +58,16 @@ public partial class MainWindow : Window
     private MosaicTile? _videoTile;
     private int _videoVersion;           // invalida aperturas de vídeo que se han quedado atrás
 
+    // Vista original: el vídeo de YouTube de la canción que suena, manejado con los controles del
+    // programa. Mientras _audioFromVideo es true el sonido sale del vídeo y el .mp3 está cerrado.
+    private YouTubeVideo? _songVideo;
+    private bool _songVideoStarted;      // ya se ha cargado la página (luego solo se cambian los vídeos)
+    private int _songVideoVersion;       // invalida búsquedas de vídeo de una canción que ya no suena
+    private bool _audioFromVideo;
+    private double _videoTime;           // segundo actual y duración del vídeo, según avisa la página
+    private double _videoDuration;
+    private TimeSpan? _pendingSeek;      // posición que se aplica al .mp3 en cuanto se abre
+
     private int _metadataVersion;     // invalida lecturas de etiquetas de una canción que ya no suena
     private string? _coverShownFor;   // canción cuya carátula grande está cargada en la vista original
 
@@ -571,6 +581,7 @@ public partial class MainWindow : Window
 
         if (_playlist.Count == 0 && _shortcuts.Count == 0)
         {
+            DisposeSongVideo();
             SetSongTexts("", "");
             PlayerPanel.Visibility = Visibility.Collapsed;
             StartPanel.Visibility = Visibility.Visible;
@@ -624,7 +635,11 @@ public partial class MainWindow : Window
         CurrentTimeText.Text = "0:00";
         TotalTimeText.Text = "0:00";
 
-        _player.Open(new Uri(path));
+        // En la vista original suena el vídeo de YouTube; si no lo hay, el .mp3.
+        if (SingleViewVisible)
+            StartSongVideo(path, 0);
+        else
+            _player.Open(new Uri(path));
         if (_openCategory is not null)
             ScheduleCategoryRefresh();   // para resaltar la canción que suena en el detalle
         StartPanel.Visibility = Visibility.Collapsed;
@@ -703,6 +718,187 @@ public partial class MainWindow : Window
         CoverPlaceholder.Visibility = cover is null ? Visibility.Visible : Visibility.Collapsed;
         _coverShownFor = path;
     }
+
+    // ─────────────────────── Vista original: vídeo de YouTube ───────────────────────
+
+    /// <summary>
+    /// Pone el vídeo de YouTube de la canción en lugar de la carátula, empezando en el segundo
+    /// <paramref name="start"/>. El sonido sale del vídeo y lo manejan los controles del programa.
+    /// Mientras se busca se ve la carátula; si no hay vídeo, suena el .mp3.
+    /// </summary>
+    private void StartSongVideo(string path, double start)
+    {
+        int version = ++_songVideoVersion;
+        _audioFromVideo = true;
+        _videoTime = start;
+        _videoDuration = 0;
+        ShowSongVideo(false);
+        SetVideoStatus("Buscando el vídeo en YouTube…");
+
+        if (_songVideo is null)
+        {
+            var video = new YouTubeVideo(controlled: true);
+            video.Playing += (_, _) =>
+            {
+                if (_songVideo == video && _audioFromVideo)
+                    ShowSongVideo(true);
+            };
+            video.Ended += (_, _) =>
+            {
+                if (_songVideo == video && _audioFromVideo)
+                    SongEnded();
+            };
+            video.Progress += (_, progress) =>
+            {
+                if (_songVideo != video || !_audioFromVideo)
+                    return;
+                _videoTime = progress.Time;
+                if (progress.Duration > 0 && Math.Abs(progress.Duration - _videoDuration) > 0.5)
+                {
+                    _videoDuration = progress.Duration;
+                    SeekSlider.Maximum = Math.Max(1, progress.Duration);
+                    TotalTimeText.Text = Format(TimeSpan.FromSeconds(progress.Duration));
+                }
+            };
+            video.Unavailable += (_, _) =>
+            {
+                if (_songVideo == video)
+                    SwitchToMp3("Esta canción no tiene vídeo que se pueda ver aquí: suena el .mp3", dispose: false);
+            };
+            _songVideo = video;
+            _songVideoStarted = false;
+            SongVideoHost.Child = video.View;
+        }
+        if (_songVideoStarted)
+            _songVideo.Hold();   // el vídeo anterior no vuelve a sonar mientras se busca el nuevo
+        _ = LoadSongVideoAsync(path, start, version);
+    }
+
+    private async Task LoadSongVideoAsync(string path, double start, int version)
+    {
+        var (title, artist) = _meta.TryGetValue(path, out var meta)
+            ? (meta.Title, meta.Artist)
+            : await Task.Run(() => SongInfo.Read(path, 0) is var info ? (info.Title, info.Artist) : default);
+        var ids = await YouTubeLinks.FindVideosAsync(path, artist, title);
+        if (version != _songVideoVersion || _songVideo is not { } video)
+            return;   // mientras se buscaba se ha cambiado de canción o de vista
+        if (ids.Count == 0)
+        {
+            SwitchToMp3("Sin conexión con YouTube: suena el .mp3", dispose: false);
+            return;
+        }
+
+        try
+        {
+            if (_songVideoStarted)
+            {
+                video.Load(ids, start);
+            }
+            else
+            {
+                _songVideoStarted = true;
+                await video.StartAsync(ids, start);
+            }
+        }
+        catch (WebView2RuntimeNotFoundException)
+        {
+            if (version == _songVideoVersion)
+                SwitchToMp3("Este Windows no puede mostrar vídeos: suena el .mp3", dispose: true);
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
+        {
+            // Se ha cerrado el vídeo mientras arrancaba el navegador interno.
+        }
+    }
+
+    /// <summary>Al entrar en la vista original, la canción sigue en su vídeo por el mismo segundo.</summary>
+    private void SwitchToVideo()
+    {
+        if (_audioFromVideo || _playlist.Current is not { } path)
+            return;
+        double at = _pendingSeek?.TotalSeconds ?? _player.Position.TotalSeconds;
+        bool playing = _isPlaying;
+        _player.Stop();
+        _player.Close();
+        _pendingSeek = null;
+        StartSongVideo(path, at);
+        if (playing)
+            _songVideo!.Play();
+        else
+            _songVideo!.Pause();
+    }
+
+    /// <summary>
+    /// El sonido vuelve al .mp3, por donde iba el vídeo: al salir de la vista original
+    /// (<paramref name="dispose"/>: se libera el navegador) o si la canción no tiene vídeo.
+    /// </summary>
+    private void SwitchToMp3(string? reason, bool dispose)
+    {
+        if (reason is not null && _audioFromVideo)
+            ShowSpotifyStatus(reason);
+        if (dispose)
+        {
+            DisposeSongVideo();   // también pasa el sonido al .mp3
+            return;
+        }
+        if (!_audioFromVideo || _playlist.Current is not { } path)
+            return;
+        _songVideoVersion++;
+        _audioFromVideo = false;
+        _songVideo?.Pause();
+        ShowSongVideo(false);
+        SetVideoStatus(null);
+
+        _pendingSeek = TimeSpan.FromSeconds(_videoTime);
+        _player.Open(new Uri(path));
+        if (_isPlaying)
+            _player.Play();
+    }
+
+    /// <summary>Muestra el vídeo (marco 16:9) o la carátula (marco cuadrado).</summary>
+    private void ShowSongVideo(bool visible)
+    {
+        SongVideoHost.Opacity = visible ? 1 : 0;
+        CoverFrame.Width = visible ? 560 : 400;
+        CoverFrame.Height = visible ? 315 : 400;
+        if (visible)
+            SetVideoStatus(null);
+    }
+
+    private void SetVideoStatus(string? text)
+    {
+        SongVideoStatusText.Text = text ?? "";
+        SongVideoStatus.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>Libera el navegador del vídeo. Si sonaba, antes hay que pasar el sonido al .mp3.</summary>
+    private void DisposeSongVideo()
+    {
+        if (_songVideo is not { } video)
+            return;
+        if (_audioFromVideo)
+        {
+            _audioFromVideo = false;
+            _pendingSeek = TimeSpan.FromSeconds(_videoTime);
+            if (_playlist.Current is { } path)
+            {
+                _player.Open(new Uri(path));
+                if (_isPlaying)
+                    _player.Play();
+            }
+        }
+        _songVideoVersion++;
+        _songVideo = null;
+        _songVideoStarted = false;
+        SongVideoHost.Child = null;
+        video.Dispose();
+        ShowSongVideo(false);
+        SetVideoStatus(null);
+    }
+
+    // Esquinas redondeadas también para el vídeo.
+    private void SongVideoHost_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        SongVideoHost.Clip = new RectangleGeometry(new Rect(e.NewSize), 16, 16);
 
     // ─────────────────────────── Menú principal y buscador ───────────────────────────
 
@@ -1207,6 +1403,12 @@ public partial class MainWindow : Window
                 tile.ReleaseCover();
         }
 
+        // En la vista original suena el vídeo de la canción; fuera de ella, el .mp3 por donde iba.
+        if (SingleViewVisible)
+            SwitchToVideo();
+        else
+            SwitchToMp3(null, dispose: true);
+
         // La carátula grande (640 px, ~1,6 MB) solo ocupa memoria mientras se ve la vista original.
         if (!SingleViewVisible)
             ShowCover(null, null);
@@ -1386,7 +1588,10 @@ public partial class MainWindow : Window
     private void Play()
     {
         CloseVideo();   // para que no suenen a la vez el vídeo y la canción
-        _player.Play();
+        if (_audioFromVideo)
+            _songVideo?.Play();
+        else
+            _player.Play();
         _isPlaying = true;
         PlayPauseButton.Content = PauseIcon;
         _timer.Start();
@@ -1394,7 +1599,10 @@ public partial class MainWindow : Window
 
     private void Pause()
     {
-        _player.Pause();
+        if (_audioFromVideo)
+            _songVideo?.Pause();
+        else
+            _player.Pause();
         _isPlaying = false;
         PlayPauseButton.Content = PlayIcon;
         _timer.Stop();
@@ -1404,6 +1612,11 @@ public partial class MainWindow : Window
     {
         _player.Stop();
         _player.Close();
+        _pendingSeek = null;
+        // El vídeo se queda (se reutiliza para la siguiente canción), pero callado.
+        _songVideoVersion++;
+        _audioFromVideo = false;
+        _songVideo?.Pause();
         _isPlaying = false;
         PlayPauseButton.Content = PlayIcon;
         _timer.Stop();
@@ -1417,6 +1630,13 @@ public partial class MainWindow : Window
         var duration = _player.NaturalDuration.TimeSpan;
         SeekSlider.Maximum = Math.Max(1, duration.TotalSeconds);
         TotalTimeText.Text = Format(duration);
+        // Al pasar del vídeo al .mp3 se sigue por donde iba.
+        if (_pendingSeek is { } position)
+        {
+            _player.Position = position < duration ? position : TimeSpan.Zero;
+            _pendingSeek = null;
+            UpdateProgress();
+        }
     }
 
     private void Player_MediaFailed(object? sender, ExceptionEventArgs e)
@@ -1446,7 +1666,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Player_MediaEnded(object? sender, EventArgs e)
+    private void Player_MediaEnded(object? sender, EventArgs e) => SongEnded();
+
+    /// <summary>Ha terminado la canción (el .mp3 o su vídeo).</summary>
+    private void SongEnded()
     {
         // Con varias canciones pasa a la siguiente (al acabar la lista vuelve a empezar).
         if (_playlist.Count > 1 && _playlist.Next() is { } next)
@@ -1456,7 +1679,15 @@ public partial class MainWindow : Window
         }
 
         Pause();
-        _player.Position = TimeSpan.Zero;
+        if (_audioFromVideo)
+        {
+            _songVideo?.Seek(0);
+            _videoTime = 0;
+        }
+        else
+        {
+            _player.Position = TimeSpan.Zero;
+        }
         UpdateProgress();
     }
 
@@ -1478,7 +1709,7 @@ public partial class MainWindow : Window
     private void UpdateProgress()
     {
         if (!_isSeeking)
-            SeekSlider.Value = _player.Position.TotalSeconds;
+            SeekSlider.Value = _audioFromVideo ? _videoTime : _player.Position.TotalSeconds;
     }
 
     private void SeekSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1515,7 +1746,15 @@ public partial class MainWindow : Window
         _isSeeking = false;
 
         // El reproductor solo salta al soltar, nunca durante el arrastre.
-        _player.Position = TimeSpan.FromSeconds(SeekSlider.Value);
+        if (_audioFromVideo)
+        {
+            _songVideo?.Seek(SeekSlider.Value);
+            _videoTime = SeekSlider.Value;
+        }
+        else
+        {
+            _player.Position = TimeSpan.FromSeconds(SeekSlider.Value);
+        }
 
         // Reinicia el temporizador para que el siguiente tick llegue cuando el salto ya está hecho
         // y la barra no rebote un instante a la posición antigua.
@@ -1554,6 +1793,7 @@ public partial class MainWindow : Window
         _spotifyStatusClear.Stop();
         _animator.Stop();
         CloseVideo();
+        DisposeSongVideo();
         _catalog.Save();
         _library.Save();
         base.OnClosed(e);

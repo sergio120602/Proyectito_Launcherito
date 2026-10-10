@@ -667,9 +667,10 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Carátula cuadrada que se adapta al tamaño de la ventana -->
+                <!-- Carátula cuadrada que se adapta al tamaño de la ventana. Encima, el vídeo de YouTube de la
+                     canción, manejado con los controles de abajo; mientras se ve, el marco pasa a 16:9. -->
                 <Viewbox Grid.Row="0" Stretch="Uniform" StretchDirection="Both" MaxWidth="560">
-                    <Border Width="400" Height="400" CornerRadius="16" Background="#151515">
+                    <Border x:Name="CoverFrame" Width="400" Height="400" CornerRadius="16" Background="#151515">
                         <Grid>
                             <TextBlock x:Name="CoverPlaceholder" Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                        FontSize="120" Foreground="#3A3A3A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -677,6 +678,12 @@
                                 <Border.Background>
                                     <ImageBrush x:Name="CoverBrush" Stretch="UniformToFill"/>
                                 </Border.Background>
+                            </Border>
+                            <Border x:Name="SongVideoHost" Opacity="0" IsHitTestVisible="False"
+                                    SizeChanged="SongVideoHost_SizeChanged"/>
+                            <Border x:Name="SongVideoStatus" Visibility="Collapsed" Background="#CC000000" CornerRadius="12"
+                                    Padding="12,6" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Bottom">
+                                <TextBlock x:Name="SongVideoStatusText" FontSize="12" Foreground="White"/>
                             </Border>
                         </Grid>
                     </Border>

@@ -6,7 +6,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.7-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.8-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -19,7 +19,7 @@
 ## 🧩 Qué hace ya
 
 - **Vista mosaico**: todas tus canciones como un mosaico de portadas de distintos tamaños. La que suena se ve en grande, con la barra y los controles dentro de la propia portada.
-- **Vista original**: una sola portada grande con el reproductor debajo. Se cambia entre las dos vistas con el botón de arriba a la derecha.
+- **Vista original**: arriba se ve el **vídeo de YouTube de la canción que suena** (en lugar de la carátula) y se maneja con los controles del programa: reproducir/pausar, la barra, anterior y siguiente. Si la canción no tiene vídeo o no hay conexión, se ve la carátula y suena el `.mp3`. Se cambia entre las dos vistas con el botón de arriba a la derecha.
 - Carga de varios `.mp3` a la vez (o *Abrir con → Launcherito*) y lista de reproducción sin límite.
 - Anterior / siguiente, modo aleatorio (activado por defecto) u orden alfabético, y paso automático a la siguiente canción.
 - **Modo edición del mosaico**: con el botón *Editar* (se queda en morado; para salir, *Dejar edición* en verde) las portadas se cogen y se llevan a otro sitio, y con el tirador de su esquina se agrandan o se encogen. Al agrandar una, las grandes que tapa se encogen; al encogerla, la siguiente crece y ocupa el hueco. El orden y los tamaños se guardan en `%LOCALAPPDATA%\Launcherito\mosaico.json`.
@@ -72,11 +72,12 @@
 | **1.5** | Modo edición: mover las portadas del mosaico y cambiar su tamaño, guardado entre sesiones ✅ |
 | **1.6** | Las canciones se guardan: «Tus canciones» para volver a cargarlas y «Borrar canciones» ✅ |
 | **1.7** | Botón Inicio para volver al menú principal y buscador de canciones ✅ |
-| 1.8 | Menú de carga: una canción, varias o una carpeta entera |
-| 1.9 | Sistema de temas y personalización |
-| 2.0 | Visualizador y color dinámico |
-| 2.1 | Ecualizador, atajos globales y mini‑reproductor |
-| 2.2 | Letras sincronizadas y estadísticas |
+| **1.8** | Vista original con el vídeo de YouTube de la canción, manejado con los controles del programa ✅ |
+| 1.9 | Menú de carga: una canción, varias o una carpeta entera |
+| 2.0 | Sistema de temas y personalización |
+| 2.1 | Visualizador y color dinámico |
+| 2.2 | Ecualizador, atajos globales y mini‑reproductor |
+| 2.3 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 
