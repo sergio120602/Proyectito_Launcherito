@@ -6,7 +6,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.8-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.9-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -25,7 +25,7 @@
 - **Modo edición del mosaico**: con el botón *Editar* (se queda en morado; para salir, *Dejar edición* en verde) las portadas se cogen y se llevan a otro sitio, y con el tirador de su esquina se agrandan o se encogen. Al agrandar una, las grandes que tapa se encogen; al encogerla, la siguiente crece y ocupa el hueco. El orden y los tamaños se guardan en `%LOCALAPPDATA%\Launcherito\mosaico.json`.
 - Las portadas del mosaico se cargan en segundo plano solo cuando se ven, para que una biblioteca grande no dispare la memoria.
 - **Pestañas Artistas y Géneros**: las canciones se clasifican automáticamente con la [API de Deezer](https://developers.deezer.com/api) (gratuita, sin clave). Cada artista tiene su foto y cada género su imagen; al pulsar uno se ven sus canciones. Lo consultado se guarda en `%LOCALAPPDATA%\Launcherito\catalogo.json`, así que solo se pregunta una vez por canción.
-- **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás llevan una marca roja de YouTube: **al pulsarlas, su vídeo de YouTube se carga dentro de la propia portada**, que se ve en grande (y se pausa lo que esté sonando). Si un vídeo no se deja ver fuera de YouTube, se abre en el navegador. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
+- **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás llevan una marca roja de YouTube y **suenan como cualquier otra canción, con el sonido de su vídeo de YouTube**: entran en la lista, se manejan con los mismos controles (anterior, siguiente, aleatorio, la barra) y en la vista original se ve el vídeo. Si una no tiene vídeo que se pueda ver dentro de la aplicación, se pasa a la siguiente. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
 - **Tus canciones**: todo lo que cargas (`.mp3` y listas de Spotify) se guarda solo en `%LOCALAPPDATA%\Launcherito\canciones.json`. Al abrir el programa, el botón *Tus canciones* las vuelve a cargar todas, y *Borrar canciones* deja elegir con casillas cuáles quitar (los archivos `.mp3` del PC no se tocan).
 - **Inicio y buscador**: el botón *Inicio* vuelve al menú principal sin parar la música (y *Volver al reproductor* regresa). El buscador de arriba (o `Ctrl+F`) encuentra canciones por su nombre o su artista, sin importar mayúsculas ni tildes; al pulsar una, suena.
 
@@ -73,11 +73,12 @@
 | **1.6** | Las canciones se guardan: «Tus canciones» para volver a cargarlas y «Borrar canciones» ✅ |
 | **1.7** | Botón Inicio para volver al menú principal y buscador de canciones ✅ |
 | **1.8** | Vista original con el vídeo de YouTube de la canción, manejado con los controles del programa ✅ |
-| 1.9 | Menú de carga: una canción, varias o una carpeta entera |
-| 2.0 | Sistema de temas y personalización |
-| 2.1 | Visualizador y color dinámico |
-| 2.2 | Ecualizador, atajos globales y mini‑reproductor |
-| 2.3 | Letras sincronizadas y estadísticas |
+| **1.9** | Las canciones de Spotify suenan en el reproductor con su vídeo de YouTube ✅ |
+| 2.0 | Menú de carga: una canción, varias o una carpeta entera |
+| 2.1 | Sistema de temas y personalización |
+| 2.2 | Visualizador y color dinámico |
+| 2.3 | Ecualizador, atajos globales y mini‑reproductor |
+| 2.4 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 

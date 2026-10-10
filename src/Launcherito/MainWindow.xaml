@@ -469,6 +469,12 @@
     </Window.Resources>
 
     <Grid>
+        <!-- Hueco invisible para el vídeo de las canciones de Spotify fuera de la vista original: se
+             oye pero no se ve. Va fuera del reproductor para que siga sonando (y con tamaño) también
+             en el menú principal; YouTube pide al menos 200 px de alto para reproducir. -->
+        <Border x:Name="HiddenVideoHost" Width="400" Height="225" Opacity="0" IsHitTestVisible="False"
+                Panel.ZIndex="-1" HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
+
         <!-- Pantalla inicial: canciones del PC, las guardadas, borrarlas o una lista de Spotify -->
         <StackPanel x:Name="StartPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Button x:Name="BackToPlayerButton" Style="{StaticResource SpotifyButton}" Margin="0,0,0,22"
@@ -742,7 +748,7 @@
                 <StackPanel>
                     <TextBlock Text="Añadir lista de Spotify" FontSize="22" FontWeight="SemiBold"/>
                     <TextBlock Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
-                               Text="Pega el enlace de una lista pública o de un álbum (Compartir → Copiar enlace). Se cargan hasta 100 canciones con su portada. Las que ya tengas en .mp3 suenan enteras; las demás, al pulsarlas, abren su vídeo en YouTube."/>
+                               Text="Pega el enlace de una lista pública o de un álbum (Compartir → Copiar enlace). Se cargan hasta 100 canciones con su portada. Las que ya tengas en .mp3 suenan enteras; las demás suenan con su vídeo de YouTube, que se ve en la vista original."/>
                     <TextBox x:Name="SpotifyLinkBox" Margin="0,18,0,0" Padding="10,8" FontSize="14"
                              Background="#0E0E0E" Foreground="White" CaretBrush="White" BorderBrush="#333333"
                              KeyDown="SpotifyLinkBox_KeyDown"/>

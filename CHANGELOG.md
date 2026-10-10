@@ -6,6 +6,22 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.9] - 2026-10-10
+
+### Cambiado
+- **Las canciones de Spotify suenan en el reproductor**, como las `.mp3`: entran en la lista de reproducción (anterior, siguiente, aleatorio, paso automático, posición «3 / 75») y se manejan con los controles del programa. El sonido sale de su vídeo de YouTube.
+- **Vista original**: con una canción de Spotify se ve su vídeo, igual que con las `.mp3`.
+- **Mosaico, Artistas y Géneros**: la portada que suena muestra sus controles y el vídeo va en un hueco invisible: se oye pero no se ve. Al cambiar de vista el mismo vídeo pasa de un sitio a otro sin cortarse.
+- Al pulsar una portada de Spotify suena (antes se abría su vídeo, con los controles de YouTube, dentro de la portada). El artista lleva la marca «vídeo de YouTube».
+- Si una canción de Spotify no tiene vídeo que se pueda ver dentro de la aplicación, se pasa a la siguiente (sin dar vueltas si no tiene ninguna); sin conexión con YouTube se para con un aviso.
+
+### Corregido
+- La primera canción tras cargar desde el menú principal podía no arrancar en vídeo: el vídeo se preparaba con el reproductor aún oculto (sin tamaño, y YouTube no reproduce por debajo de 200 px). Ahora el reproductor se muestra antes y el hueco del vídeo oculto está fuera de él, así que también sigue sonando en el menú principal.
+
+### Técnico
+- Ya no hay «accesos directos» aparte (`_shortcuts`): el mosaico es la lista de reproducción. Se quitan `OpenVideoAsync`, `CloseVideo` y el vídeo con controles de YouTube dentro de la portada.
+- `WantedVideoHost` decide dónde va el vídeo (vista original, hueco invisible o ninguno) y `UpdateSongSource` mueve el sonido al cambiar de vista; `MoveSongVideo` cambia el navegador de sitio sin cerrarlo.
+
 ## [1.8] - 2026-10-10
 
 ### Añadido
