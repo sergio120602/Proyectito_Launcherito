@@ -71,7 +71,9 @@ import kotlin.math.roundToInt
 
 private val Gap = 8.dp
 private val TileRadius = 14.dp
-private val ControlsMinWidth = 300.dp   // ancho que necesitan los controles dentro de la portada que suena
+// Ancho que necesitan los controles dentro de la portada que suena (más con la letra grande).
+private val ControlsMinWidth = 300.dp
+private val ControlsMinWidthLarge = 340.dp
 private val GripSize = 40.dp            // zona del tirador (algo mayor que el dibujo, para el dedo)
 
 /** Columnas y tamaño de celda del mosaico (en píxeles), según el ancho de la pantalla. */
@@ -255,16 +257,20 @@ fun MosaicView(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
     val editor = remember(vm) { MosaicEditor(vm) }
     val scroll = rememberScrollState()
+    val large = LocalLargeText.current
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val width = constraints.maxWidth.toFloat()
         val viewport = constraints.maxHeight.toFloat()
         val gap = with(density) { Gap.toPx() }
-        // En un móvil las portadas son más pequeñas que en el PC (190 px): caben 3 por fila.
-        val target = with(density) { (if (maxWidth < 600.dp) 112.dp else 170.dp).toPx() }
+        // En un móvil las portadas son más pequeñas que en el PC (190 px): caben 3 por fila (2 con la
+        // letra grande, para que se lean los títulos).
+        val target = with(density) {
+            (if (maxWidth < 600.dp) (if (large) 150.dp else 112.dp) else (if (large) 210.dp else 170.dp)).toPx()
+        }
         val columns = max(2, ((width + gap) / (target + gap)).toInt())
         val cell = max(1f, (width - gap * (columns - 1)) / columns)
-        val metrics = MosaicMetrics(columns, cell, gap, with(density) { ControlsMinWidth.toPx() })
+        val metrics = MosaicMetrics(columns, cell, gap, with(density) { (if (large) ControlsMinWidthLarge else ControlsMinWidth).toPx() })
         editor.metrics = metrics
         editor.gripPx = with(density) { GripSize.toPx() }
 

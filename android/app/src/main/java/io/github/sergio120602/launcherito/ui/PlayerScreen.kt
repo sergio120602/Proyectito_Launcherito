@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CropSquare
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
@@ -134,6 +136,14 @@ private fun TopBar(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
                 if (vm.libraryCount > 0) {
                     MenuItem("Borrar canciones", Icons.Rounded.DeleteOutline) { menuOpen = false; vm.openDeleteDialog() }
                 }
+                HorizontalDivider()
+                // Letra pequeña o grande: se marca si está puesta la grande.
+                DropdownMenuItem(
+                    text = { Text("Letra grande") },
+                    leadingIcon = { Icon(Icons.Rounded.FormatSize, contentDescription = null) },
+                    trailingIcon = { if (vm.largeText) Icon(Icons.Rounded.Check, contentDescription = "Activada", tint = Accent) },
+                    onClick = { menuOpen = false; vm.chooseLargeText(!vm.largeText) },
+                )
             }
         }
     }
@@ -168,7 +178,9 @@ private fun SearchField(vm: LauncheritoViewModel, modifier: Modifier) {
             ) {
                 Icon(Icons.Rounded.Search, contentDescription = null, tint = Muted, modifier = Modifier.size(20.dp))
                 Box(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                    if (vm.searchQuery.isEmpty()) Text("Buscar canción o artista", color = Muted, fontSize = 15.sp, maxLines = 1)
+                    if (vm.searchQuery.isEmpty()) {
+                        Text("Buscar", color = Muted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                     inner()
                 }
                 if (vm.searchQuery.isNotEmpty()) {
@@ -185,9 +197,9 @@ private fun SearchField(vm: LauncheritoViewModel, modifier: Modifier) {
 @Composable
 private fun SectionBar(vm: LauncheritoViewModel) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (LocalLargeText.current) 2.dp else 6.dp),
     ) {
         Tab("Canciones", vm.section == Section.Songs) { vm.showSection(Section.Songs) }
         Tab("Artistas", vm.section == Section.Artists) { vm.showSection(Section.Artists) }
@@ -202,10 +214,12 @@ private fun Tab(text: String, active: Boolean, onClick: () -> Unit) {
         fontSize = 14.sp,
         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
         color = if (active) Color.White else Muted,
+        maxLines = 1,
+        softWrap = false,
         modifier = Modifier.clip(RoundedCornerShape(16.dp))
             .background(if (active) Accent.copy(alpha = 0.25f) else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = if (LocalLargeText.current) 9.dp else 12.dp, vertical = 7.dp),
     )
 }
 
@@ -213,12 +227,12 @@ private fun Tab(text: String, active: Boolean, onClick: () -> Unit) {
 private fun ActionPill(icon: ImageVector, text: String, background: Color, onClick: () -> Unit) {
     Row(
         Modifier.clip(RoundedCornerShape(16.dp)).background(background).clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = 10.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(6.dp))
-        Text(text, fontSize = 13.sp, maxLines = 1)
+        Text(text, fontSize = 13.sp, maxLines = 1, softWrap = false)
     }
 }
 
@@ -228,12 +242,15 @@ private fun ActionPill(icon: ImageVector, text: String, background: Color, onCli
  */
 @Composable
 private fun StatusLine(vm: LauncheritoViewModel) {
+    // Con la letra grande no caben el aviso y los botones en una fila: el aviso va arriba, solo.
+    val large = LocalLargeText.current
+    if (large) StatusText(vm, Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 6.dp))
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, if (large) Alignment.End else Alignment.Start),
     ) {
-        StatusText(vm, Modifier.weight(1f))
+        if (!large) StatusText(vm, Modifier.weight(1f))
         if (vm.mosaicVisible) {
             if (vm.isEditing) {
                 // Dejar edición, en verde; Editar se queda en morado mientras dura.
@@ -248,6 +265,14 @@ private fun StatusLine(vm: LauncheritoViewModel) {
             else ActionPill(Icons.Rounded.GridView, "Vista mosaico", Pill, vm::toggleMosaicView)
         }
     }
+    // La ayuda del modo edición va en su propia línea: al lado de los botones no cabe.
+    if (vm.isEditing) {
+        Text(
+            "Mantén pulsada una portada para moverla; arrastra su esquina para cambiar el tamaño",
+            color = Muted, fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
+        )
+    }
 }
 
 /** Una línea de avisos: Spotify y vídeo, la clasificación con Deezer, la edición o cuántas canciones hay. */
@@ -255,13 +280,12 @@ private fun StatusLine(vm: LauncheritoViewModel) {
 private fun StatusText(vm: LauncheritoViewModel, modifier: Modifier) {
     val text = when {
         vm.statusText.isNotEmpty() -> vm.statusText
-        vm.isEditing -> "Mantén pulsada una portada para moverla; su esquina cambia el tamaño"
         vm.catalogStatus.isNotEmpty() -> vm.catalogStatus
         else -> LauncheritoViewModel.songs(vm.tiles.size)
     }
     Text(
-        text, color = Muted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
+        text, color = Muted, fontSize = 12.sp, maxLines = if (vm.section == Section.Songs) 2 else 1,
+        overflow = TextOverflow.Ellipsis, modifier = modifier,
     )
 }
 

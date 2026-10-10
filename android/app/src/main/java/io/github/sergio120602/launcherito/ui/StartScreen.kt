@@ -4,6 +4,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -92,11 +96,37 @@ fun StartScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
             spotify = true,
             onClick = { vm.openSpotifyDialog() },
         )
+        Spacer(Modifier.height(22.dp))
+        TextSizeChooser(vm)
         if (vm.libraryCount == 0) {
             Spacer(Modifier.height(16.dp))
             Text(
                 "Las canciones que cargues se guardan solas en «Tus canciones».",
                 color = Muted, fontSize = 13.sp, textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/** «Letra: Pequeña · Grande». La elegida va en morado. */
+@Composable
+private fun TextSizeChooser(vm: LauncheritoViewModel) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Letra:", color = Muted, fontSize = 14.sp)
+        Spacer(Modifier.width(8.dp))
+        listOf(false to "Pequeña", true to "Grande").forEach { (large, label) ->
+            val selected = vm.largeText == large
+            Text(
+                label,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (selected) Color.White else Muted,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.padding(horizontal = 3.dp).clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) Accent.copy(alpha = 0.35f) else Pill)
+                    .clickable { vm.chooseLargeText(large) }
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
             )
         }
     }

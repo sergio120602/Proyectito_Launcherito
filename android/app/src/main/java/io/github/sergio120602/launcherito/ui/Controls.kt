@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun PlayerControls(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
     val shown = if (vm.isSeeking) vm.seekValue else vm.position
+    val large = LocalLargeText.current
+    val skip = if (large) 36.dp else 30.dp
     Column(modifier) {
         Slider(
             value = shown.coerceIn(0f, maxOf(1f, vm.duration)),
@@ -68,21 +70,21 @@ fun PlayerControls(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.width(4.dp))
             IconButton(onClick = vm::previous) {
-                Icon(Icons.Rounded.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(30.dp))
+                Icon(Icons.Rounded.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(skip))
             }
             FilledIconButton(
                 onClick = vm::togglePlay,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(if (large) 66.dp else 56.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(containerColor = Accent, contentColor = Color.White),
             ) {
                 Icon(
                     if (vm.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (vm.isPlaying) "Pausar" else "Reproducir",
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(if (large) 38.dp else 32.dp),
                 )
             }
             IconButton(onClick = vm::next) {
-                Icon(Icons.Rounded.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(30.dp))
+                Icon(Icons.Rounded.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(skip))
             }
             Spacer(Modifier.width(4.dp))
             // Posición en la lista; ancho fijo para que los botones no se muevan al cambiar.

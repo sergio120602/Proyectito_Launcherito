@@ -6,6 +6,20 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.10.1] - 2026-10-10
+
+### Añadido
+- **Android: letra pequeña o grande.** Se elige en la pantalla inicial («Letra: Pequeña · Grande») o en el menú ⋮ («Letra grande») y se recuerda. La primera vez se elige sola: grande si el móvil tiene la letra aumentada.
+  - **Pequeña**: diseño compacto; la letra no pasa del tamaño normal aunque el móvil la tenga más grande. Caben 3 portadas por fila.
+  - **Grande**: respeta la letra del móvil (entre 1,3× y 1,5×). El número de canciones y los botones «Editar» y «Vista original» van en filas separadas, caben 2 portadas por fila y los botones de reproducir, anterior y siguiente son más grandes.
+
+### Cambiado
+- Android: el botón de la vista original pasa a ser como en Windows, con icono y texto («Vista original» / «Vista mosaico»), junto a «Editar» bajo las pestañas. Antes era un icono suelto en la barra de arriba que no se reconocía.
+- Android: la ayuda del modo edición va en su propia línea y el buscador dice solo «Buscar».
+
+### Corregido
+- Android: con la letra del móvil aumentada quedaban grandes huecos negros encima y debajo de las pestañas. El botón «Editar» no cabía y su texto se partía letra a letra, estirando la fila. Ahora las pestañas y los botones nunca parten su texto y, si las pestañas no caben, se desplazan de lado.
+
 ## [1.10] - 2026-10-10
 
 ### Añadido

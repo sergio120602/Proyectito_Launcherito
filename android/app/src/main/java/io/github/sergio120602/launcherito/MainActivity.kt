@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
         // Al girar la pantalla la actividad se crea de nuevo con el mismo intent: no se vuelve a abrir.
         if (savedInstanceState == null) handleIntent(intent)
         setContent {
-            LauncheritoTheme {
+            LauncheritoTheme(largeText = vm.largeText) {
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
                     if (uris.isNotEmpty()) vm.addFiles(uris)
                 }

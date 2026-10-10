@@ -1,6 +1,7 @@
 package io.github.sergio120602.launcherito.ui
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.getValue
@@ -80,6 +81,21 @@ class LauncheritoViewModel(app: Application) : AndroidViewModel(app) {
     private val catalog = MusicCatalog(app)
     private val arrangement = MosaicArrangement(app)
     private val collator = Collator.getInstance().apply { strength = Collator.SECONDARY }
+    private val settings = app.getSharedPreferences("ajustes", Context.MODE_PRIVATE)
+
+    /**
+     * Letra grande o pequeña. Se recuerda; la primera vez se elige según la letra que tenga el móvil
+     * (grande si la tiene aumentada).
+     */
+    var largeText by mutableStateOf(
+        settings.getBoolean(LARGE_TEXT_KEY, app.resources.configuration.fontScale > 1.15f)
+    )
+        private set
+
+    fun chooseLargeText(large: Boolean) {
+        largeText = large
+        settings.edit().putBoolean(LARGE_TEXT_KEY, large).apply()
+    }
 
     // ─────────────────────────────── Estado de la pantalla ───────────────────────────────
 
@@ -1137,6 +1153,7 @@ class LauncheritoViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val MAX_SEARCH_RESULTS = 50
+        private const val LARGE_TEXT_KEY = "letraGrande"
 
         fun songs(count: Int) = if (count == 1) "1 canción" else "$count canciones"
 
