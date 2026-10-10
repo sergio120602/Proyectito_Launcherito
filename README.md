@@ -6,7 +6,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.9-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.9.1-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -74,6 +74,7 @@
 | **1.7** | Botón Inicio para volver al menú principal y buscador de canciones ✅ |
 | **1.8** | Vista original con el vídeo de YouTube de la canción, manejado con los controles del programa ✅ |
 | **1.9** | Las canciones de Spotify suenan en el reproductor con su vídeo de YouTube ✅ |
+| **1.9.1** | Marca de procedencia en cada portada: tus .mp3 en morado, las de Spotify en verde ✅ |
 | 2.0 | Menú de carga: una canción, varias o una carpeta entera |
 | 2.1 | Sistema de temas y personalización |
 | 2.2 | Visualizador y color dinámico |

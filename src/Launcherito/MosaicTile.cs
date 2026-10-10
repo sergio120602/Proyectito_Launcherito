@@ -26,6 +26,12 @@ public sealed class MosaicTile : Border
     private static readonly Brush EmptyBackground = Frozen(new SolidColorBrush(Color.FromRgb(0x15, 0x15, 0x15)));
     private static readonly Brush PlaceholderBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)));
     private static readonly Brush YouTubeRed = Frozen(new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0x33)));
+    // Marca de procedencia, arriba a la izquierda: morada con una nota si es tu .mp3, verde con las
+    // tres ondas del logo si viene de Spotify.
+    private static readonly Brush OwnPurple = Frozen(new SolidColorBrush(Color.FromRgb(0x8B, 0x5C, 0xF6)));
+    private static readonly Brush SpotifyGreen = Frozen(new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)));
+    private static readonly Geometry SpotifyWaves = FrozenGeometry(
+        "M 6.5,9.6 Q 12,7.6 17.5,10.6 M 7.3,12.7 Q 12,11.1 16.6,13.5 M 8.1,15.6 Q 12,14.4 15.6,16.3");
     private static readonly Brush GripBackground = Frozen(new SolidColorBrush(Color.FromArgb(0xB0, 0, 0, 0)));
     private static readonly Geometry GripLines = FrozenGeometry("M 17,7 L 7,17 M 17,12 L 12,17");
     private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
@@ -40,6 +46,7 @@ public sealed class MosaicTile : Border
     private TextBlock? _activeTitle;
     private TextBlock? _activeArtist;
     private Border? _youTubeBadge;
+    private readonly Border _sourceBadge;
     private Grid? _videoHost;
     private Brush? _sharpCover;
     private Brush? _blurredCover;
@@ -68,13 +75,51 @@ public sealed class MosaicTile : Border
             VerticalAlignment = VerticalAlignment.Center,
         };
         _root.Children.Add(_placeholder);
-        if (SpotifyLibrary.IsSpotify(path))
+        bool spotify = SpotifyLibrary.IsSpotify(path);
+        _sourceBadge = spotify ? SpotifyBadge() : OwnBadge();
+        _root.Children.Add(_sourceBadge);
+        if (spotify)
         {
             _youTubeBadge = YouTubeBadge();
             _root.Children.Add(_youTubeBadge);
         }
         Child = _root;
     }
+
+    /// <summary>Círculo de la esquina de arriba a la izquierda que dice de dónde es la canción.</summary>
+    private static Border SourceBadge(Brush background, UIElement content) => new()
+    {
+        Width = 24,
+        Height = 24,
+        Margin = new Thickness(10),
+        CornerRadius = new CornerRadius(12),
+        Background = background,
+        HorizontalAlignment = HorizontalAlignment.Left,
+        VerticalAlignment = VerticalAlignment.Top,
+        IsHitTestVisible = false,
+        Child = content,
+    };
+
+    /// <summary>Tu música: un .mp3 tuyo, que suena entero.</summary>
+    private static Border OwnBadge() => SourceBadge(OwnPurple, new TextBlock
+    {
+        Text = "",   // nota musical
+        FontFamily = IconFont,
+        FontSize = 12,
+        Foreground = Brushes.White,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+    });
+
+    /// <summary>De Spotify: el círculo verde con las tres ondas negras del logo.</summary>
+    private static Border SpotifyBadge() => SourceBadge(SpotifyGreen, new System.Windows.Shapes.Path
+    {
+        Data = SpotifyWaves,
+        Stroke = Brushes.Black,
+        StrokeThickness = 1.8,
+        StrokeStartLineCap = PenLineCap.Round,
+        StrokeEndLineCap = PenLineCap.Round,
+    });
 
     /// <summary>Marca roja con el triángulo de reproducir: al pulsar la portada se ve su vídeo de YouTube.</summary>
     private static Border YouTubeBadge() => new()
@@ -300,6 +345,7 @@ public sealed class MosaicTile : Border
         HideVideo();
         HideHover();
         ToolTip = null;
+        _sourceBadge.Visibility = Visibility.Collapsed;
         if (_youTubeBadge is not null)
             _youTubeBadge.Visibility = Visibility.Collapsed;
 
@@ -333,6 +379,7 @@ public sealed class MosaicTile : Border
         _videoHost = null;
         ToolTip = $"{Title} — {Artist}";
         UpdateCursor();
+        _sourceBadge.Visibility = Visibility.Visible;
         if (_youTubeBadge is not null)
             _youTubeBadge.Visibility = Visibility.Visible;
     }

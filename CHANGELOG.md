@@ -6,6 +6,11 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.9.1] - 2026-10-10
+
+### Añadido
+- **Marca de procedencia en cada portada del mosaico**, arriba a la izquierda: un círculo morado con una nota si es un `.mp3` tuyo y uno verde con las tres ondas del logo si viene de Spotify. Las de Spotify conservan además la marca roja de YouTube a la derecha.
+
 ## [1.9] - 2026-10-10
 
 ### Cambiado
