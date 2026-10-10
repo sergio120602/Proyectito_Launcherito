@@ -23,5 +23,5 @@ __pycache__/
 bin/
 obj/
 publish/
-/Launcherito v*.exe
+/Launcherito.exe
 *.user

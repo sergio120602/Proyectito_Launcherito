@@ -6,7 +6,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.5-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.6-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows-blue)
 
@@ -26,6 +26,7 @@
 - Las portadas del mosaico se cargan en segundo plano solo cuando se ven, para que una biblioteca grande no dispare la memoria.
 - **Pestañas Artistas y Géneros**: las canciones se clasifican automáticamente con la [API de Deezer](https://developers.deezer.com/api) (gratuita, sin clave). Cada artista tiene su foto y cada género su imagen; al pulsar uno se ven sus canciones. Lo consultado se guarda en `%LOCALAPPDATA%\Launcherito\catalogo.json`, así que solo se pregunta una vez por canción.
 - **Listas de Spotify**: en la pantalla inicial (o con *＋ Lista de Spotify* arriba) se pega el enlace de una lista pública o de un álbum y sus canciones entran en el mosaico con su portada. No hace falta cuenta ni Premium. Spotify no da el audio completo: las canciones que ya tienes en `.mp3` suenan enteras y no se repiten; las demás llevan una marca roja de YouTube: **al pulsarlas, su vídeo de YouTube se carga dentro de la propia portada**, que se ve en grande (y se pausa lo que esté sonando). Si un vídeo no se deja ver fuera de YouTube, se abre en el navegador. Se leen hasta 100 canciones por lista y las portadas se guardan en `%LOCALAPPDATA%\Launcherito\spotify`.
+- **Tus canciones**: todo lo que cargas (`.mp3` y listas de Spotify) se guarda solo en `%LOCALAPPDATA%\Launcherito\canciones.json`. Al abrir el programa, el botón *Tus canciones* las vuelve a cargar todas, y *Borrar canciones* deja elegir con casillas cuáles quitar (los archivos `.mp3` del PC no se tocan).
 
 ## 🚀 Características previstas
 
@@ -68,11 +69,12 @@
 | **1.3** | Listas y álbumes de Spotify desde un enlace, con sus portadas y fragmentos; las que tienes en .mp3 suenan enteras ✅ |
 | **1.4** | El vídeo de YouTube de las canciones de Spotify se ve dentro de su portada ✅ |
 | **1.5** | Modo edición: mover las portadas del mosaico y cambiar su tamaño, guardado entre sesiones ✅ |
-| 1.6 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
-| 1.7 | Sistema de temas y personalización |
-| 1.8 | Visualizador y color dinámico |
-| 1.9 | Ecualizador, atajos globales y mini‑reproductor |
-| 2.0 | Letras sincronizadas y estadísticas |
+| **1.6** | Las canciones se guardan: «Tus canciones» para volver a cargarlas y «Borrar canciones» ✅ |
+| 1.7 | Menú de carga: una canción, varias o una carpeta entera; búsqueda en el mosaico |
+| 1.8 | Sistema de temas y personalización |
+| 1.9 | Visualizador y color dinámico |
+| 2.0 | Ecualizador, atajos globales y mini‑reproductor |
+| 2.1 | Letras sincronizadas y estadísticas |
 
 ## 📦 Instalación
 

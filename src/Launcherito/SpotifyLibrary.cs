@@ -47,6 +47,9 @@ public static class SpotifyLibrary
 
     public static bool TryGet(string key, out SpotifyTrack track) => Tracks.TryGetValue(key, out track!);
 
+    /// <summary>Vuelve a dar a conocer una canción guardada («Tus canciones») sin pedirla a Spotify.</summary>
+    public static void Register(SpotifyTrack track) => Tracks[track.Key] = track;
+
     /// <summary>Saca el tipo ("playlist" o "album") y el id de un enlace de Spotify, o null si no lo es.</summary>
     public static (string Type, string Id)? ParseLink(string? text)
     {

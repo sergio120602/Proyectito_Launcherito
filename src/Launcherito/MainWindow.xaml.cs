@@ -52,6 +52,7 @@ public partial class MainWindow : Window
 
     private readonly Dictionary<string, string> _localSongs = new();   // clave artista|título → .mp3 cargado
     private readonly HashSet<string> _shortcuts = new();               // canciones de Spotify: accesos directos a YouTube
+    private readonly SongLibrary _library = new();                     // «Tus canciones»: todas las que se han cargado
     private readonly DispatcherTimer _spotifyStatusClear = new() { Interval = TimeSpan.FromSeconds(12) };
     private YouTubeVideo? _video;        // vídeo de YouTube que se ve dentro de una portada
     private MosaicTile? _videoTile;
@@ -89,6 +90,7 @@ public partial class MainWindow : Window
             RefreshCategories();
         };
         SetMosaicView(false);
+        UpdateLibraryButtons();
 
         // Permite abrir canciones pasadas como argumento (p. ej. "Abrir con → Launcherito").
         var args = Environment.GetCommandLineArgs();
@@ -176,14 +178,19 @@ public partial class MainWindow : Window
         }
 
         var keys = new List<string>();
+        var saved = new List<SavedSong>();
         int owned = 0;
         foreach (var track in list.Tracks)
         {
             if (_localSongs.ContainsKey(SpotifyLibrary.MatchKey(track.Artists, track.Title)))
                 owned++;
             else
+            {
                 keys.Add(track.Key);
+                saved.Add(SavedSong.FromTrack(track));
+            }
         }
+        _library.Add(saved);
         int added = AddShortcuts(keys);
 
         var summary = new List<string> { $"«{list.Name}»: {Songs(added)} añadida{(added == 1 ? "" : "s")}" };
@@ -242,6 +249,7 @@ public partial class MainWindow : Window
             _shortcuts.Remove(key);
             _meta.Remove(key);
         }
+        _library.Remove(duplicates);   // tampoco hace falta guardarla: ya está guardado el .mp3
         SyncMosaic();
         ScheduleCategoryRefresh();
     }
@@ -373,7 +381,209 @@ public partial class MainWindow : Window
                 "Launcherito", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
+        // Se guardan en «Tus canciones»; el título y el artista se apuntan al leer sus etiquetas.
+        _library.Add(valid.Select(path => new SavedSong { Key = path, Title = SongInfo.FallbackTitle(path) }));
         AddToPlaylist(valid);
+    }
+
+    // ─────────────────────── Tus canciones y Borrar canciones ───────────────────────
+
+    /// <summary>Activa los botones según lo guardado; en la barra superior, Tus canciones solo si falta alguna por cargar.</summary>
+    private void UpdateLibraryButtons()
+    {
+        int saved = _library.Count;
+        LibraryButton.IsEnabled = saved > 0;
+        DeleteSongsButton.IsEnabled = saved > 0;
+        LibraryCountText.Text = saved > 0 ? $"· {saved}" : "";
+        LibraryButton.ToolTip = saved > 0
+            ? $"Cargar {Songs(saved)} guardada{(saved == 1 ? "" : "s")}"
+            : "Aún no hay canciones guardadas: se guardan solas al cargarlas";
+        DeleteSongsButton.ToolTip = saved > 0 ? null : "No hay canciones guardadas";
+
+        int notLoaded = UnloadedSongs().Count;
+        TopLibraryButton.Content = $"♫  +{notLoaded}";
+        TopLibraryButton.ToolTip = $"Tus canciones: cargar {(notLoaded == 1 ? "la que falta" : $"las {notLoaded} que faltan")}";
+        TopLibraryButton.Visibility = notLoaded > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TopDeleteButton.Visibility = saved > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Guardadas que no están en el mosaico y se pueden cargar (los .mp3, solo si siguen en su sitio).</summary>
+    private List<SavedSong> UnloadedSongs() =>
+        _library.Songs.Where(song => !_tiles.ContainsKey(song.Key) && (song.IsSpotify || File.Exists(song.Key))).ToList();
+
+    /// <summary>Carga todas las canciones guardadas que aún no están en el mosaico.</summary>
+    private void LibraryButton_Click(object sender, RoutedEventArgs e)
+    {
+        var mp3 = new List<string>();
+        var spotify = new List<string>();
+        foreach (var song in UnloadedSongs())
+        {
+            if (song.IsSpotify)
+            {
+                SpotifyLibrary.Register(song.ToTrack());
+                spotify.Add(song.Key);
+            }
+            else
+            {
+                mp3.Add(song.Key);
+            }
+        }
+        if (spotify.Count > 0)
+            AddShortcuts(spotify);
+        if (mp3.Count > 0)
+            AddToPlaylist(mp3);
+
+        int missing = _library.Songs.Count(song => !song.IsSpotify && !File.Exists(song.Key));
+        if (missing > 0)
+        {
+            MessageBox.Show(this,
+                $"{(missing == 1 ? "1 canción guardada ya no está" : $"{missing} canciones guardadas ya no están")} en su sitio " +
+                "(¿se ha movido o borrado el archivo?). Puedes quitarlas con «Borrar canciones».",
+                "Launcherito", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void DeleteSongsButton_Click(object sender, RoutedEventArgs e)
+    {
+        DeleteList.Children.Clear();
+        var muted = (Brush)FindResource("Muted");
+        foreach (var song in _library.Songs)
+        {
+            bool missing = !song.IsSpotify && !File.Exists(song.Key);
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var title = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis };
+            title.Inlines.Add(song.Title);
+            if (song.Artist.Length > 0)
+                title.Inlines.Add(new System.Windows.Documents.Run("  ·  " + song.Artist) { Foreground = muted });
+            // Marca a la derecha: de dónde viene, o que el archivo ya no está.
+            var tag = new TextBlock
+            {
+                Text = missing ? "no se encuentra" : song.IsSpotify ? "Spotify" : ".mp3",
+                FontSize = 12,
+                Margin = new Thickness(12, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = missing ? (Brush)FindResource("DangerRed")
+                    : song.IsSpotify ? (Brush)FindResource("SpotifyGreen") : muted,
+            };
+            Grid.SetColumn(tag, 1);
+            row.Children.Add(title);
+            row.Children.Add(tag);
+
+            var check = new CheckBox
+            {
+                Style = (Style)FindResource("SongCheck"),
+                Content = row,
+                Tag = song.Key,
+                ToolTip = song.IsSpotify ? null : song.Key,   // la ruta del .mp3
+            };
+            check.Checked += DeleteCheck_Changed;
+            check.Unchecked += DeleteCheck_Changed;
+            DeleteList.Children.Add(check);
+        }
+        UpdateDeleteButtons();
+        DeleteOverlay.Visibility = Visibility.Visible;
+        DeleteOverlay.Focus();
+    }
+
+    private IEnumerable<CheckBox> DeleteChecks => DeleteList.Children.OfType<CheckBox>();
+
+    private void DeleteCheck_Changed(object sender, RoutedEventArgs e) => UpdateDeleteButtons();
+
+    private void UpdateDeleteButtons()
+    {
+        int marked = DeleteChecks.Count(check => check.IsChecked == true);
+        bool all = marked > 0 && marked == DeleteList.Children.Count;
+        ConfirmDeleteButton.Content = marked == 0 ? "Borrar" : $"Borrar {Songs(marked)}";
+        ConfirmDeleteButton.IsEnabled = marked > 0;
+        SelectAllButton.Content = all ? "Quitar la selección" : "Seleccionar todas";
+    }
+
+    private void SelectAllButton_Click(object sender, RoutedEventArgs e)
+    {
+        bool select = DeleteChecks.Any(check => check.IsChecked != true);
+        foreach (var check in DeleteChecks)
+            check.IsChecked = select;
+    }
+
+    private void DeleteCancel_Click(object sender, RoutedEventArgs e) => CloseDeletePanel();
+
+    private void DeleteOverlay_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+            CloseDeletePanel();
+    }
+
+    private void CloseDeletePanel()
+    {
+        DeleteOverlay.Visibility = Visibility.Collapsed;
+        DeleteList.Children.Clear();   // las filas se rehacen cada vez que se abre
+    }
+
+    private void ConfirmDelete_Click(object sender, RoutedEventArgs e)
+    {
+        var keys = DeleteChecks.Where(check => check.IsChecked == true).Select(check => (string)check.Tag).ToList();
+        if (keys.Count == 0)
+            return;
+        string question = keys.Count == _library.Count
+            ? "¿Borrar todas tus canciones guardadas?"
+            : $"¿Borrar {Songs(keys.Count)} de «Tus canciones»?";
+        if (MessageBox.Show(this, question + "\nLos archivos .mp3 de tu PC no se borran.", "Borrar canciones",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            return;
+
+        _library.Remove(keys);
+        CloseDeletePanel();
+        RemoveFromSession(keys);
+        UpdateLibraryButtons();
+    }
+
+    /// <summary>
+    /// Quita del mosaico y de la lista las canciones borradas. Si sonaba una de ellas, pasa a la
+    /// siguiente que quede; si no queda ninguna, se vuelve a la pantalla inicial.
+    /// </summary>
+    private void RemoveFromSession(IReadOnlyList<string> keys)
+    {
+        var gone = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
+        bool currentGone = _playlist.Current is { } current && gone.Contains(current);
+        bool wasPlaying = _isPlaying;
+        if (currentGone)
+            Stop();
+
+        foreach (var key in gone)
+        {
+            _shortcuts.Remove(key);
+            _meta.Remove(key);
+        }
+        foreach (var match in _localSongs.Where(kv => gone.Contains(kv.Value)).Select(kv => kv.Key).ToList())
+            _localSongs.Remove(match);
+        _playlist.Remove(gone);         // todas menos la que suena…
+        if (currentGone)
+            _playlist.RemoveCurrent();  // …que se quita aparte
+        SyncMosaic();
+        ScheduleCategoryRefresh();
+        UpdatePosition();
+
+        if (_playlist.Count == 0 && _shortcuts.Count == 0)
+        {
+            SetSongTexts("", "");
+            PlayerPanel.Visibility = Visibility.Collapsed;
+            StartPanel.Visibility = Visibility.Visible;
+        }
+        else if (currentGone)
+        {
+            if (_playlist.Current is { } next)
+            {
+                PlaySong(next);
+                if (!wasPlaying)
+                    Pause();
+            }
+            else
+            {
+                SetSongTexts("", "");   // solo quedan canciones de Spotify
+            }
+        }
     }
 
     /// <summary>Añade canciones (.mp3 o de Spotify) a la lista y al mosaico. Devuelve cuántas son nuevas.</summary>
@@ -542,10 +752,12 @@ public partial class MainWindow : Window
             {
                 _meta[path] = new SongMeta { Title = info.Title, Artist = info.Artist };
                 _localSongs[SpotifyLibrary.MatchKey(info.Artist, info.Title)] = path;
+                _library.Describe(path, info.Title, info.Artist);
                 newLocal = true;
             }
             _pending.Enqueue(path);
         }
+        _library.Save();
         if (newLocal)
             RemoveSpotifyDuplicates();
         ScheduleCategoryRefresh();
@@ -867,6 +1079,7 @@ public partial class MainWindow : Window
         }
 
         SongCountText.Text = songs.Count == 1 ? "1 canción" : $"{songs.Count} canciones";
+        UpdateLibraryButtons();
         Dispatcher.BeginInvoke(UpdateVisibleCovers, DispatcherPriority.Loaded);
         // Entrada de las nuevas y desplazamiento de las demás en cuanto el mosaico se recoloque, antes
         // de pintarlo: con BeginInvoke se llegaría a ver un fotograma con las teselas ya en su sitio.
@@ -1157,6 +1370,7 @@ public partial class MainWindow : Window
         _animator.Stop();
         CloseVideo();
         _catalog.Save();
+        _library.Save();
         base.OnClosed(e);
     }
 }

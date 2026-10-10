@@ -37,6 +37,103 @@
             </Setter>
         </Style>
 
+        <!-- Botón grande oscuro de la pantalla inicial (Tus canciones, Borrar canciones) -->
+        <Style x:Key="StartButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#1C1C1C"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="32,16"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="18"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2E2E2E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botón rojo para confirmar el borrado -->
+        <SolidColorBrush x:Key="DangerRed" Color="#EF4444"/>
+        <Style x:Key="DangerButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{StaticResource DangerRed}"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="22,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="22"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F87171"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Fila con casilla del panel Borrar canciones -->
+        <Style x:Key="SongCheck" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="Row" Background="Transparent" CornerRadius="10" Padding="12,9">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="Box" Width="20" Height="20" CornerRadius="6" BorderThickness="2"
+                                        BorderBrush="#555555" Background="Transparent" VerticalAlignment="Center">
+                                    <TextBlock x:Name="Tick" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="11" Foreground="White" Visibility="Collapsed"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ContentPresenter Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#1C1C1C"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{StaticResource DangerRed}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource DangerRed}"/>
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Botón circular de reproducir / pausar -->
         <Style x:Key="RoundButton" TargetType="Button">
             <Setter Property="Foreground" Value="Black"/>
@@ -331,9 +428,25 @@
     </Window.Resources>
 
     <Grid>
-        <!-- Pantalla inicial: canciones del PC o una lista de Spotify -->
+        <!-- Pantalla inicial: canciones del PC, las guardadas, borrarlas o una lista de Spotify -->
         <StackPanel x:Name="StartPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Button Content="Cargar Archivos" Style="{StaticResource BigButton}" Click="LoadButton_Click"/>
+            <Button x:Name="LibraryButton" Style="{StaticResource StartButton}" Margin="0,16,0,0"
+                    AutomationProperties.Name="Tus canciones" Click="LibraryButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE8F1;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                    <TextBlock Text="Tus canciones" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LibraryCountText" Margin="10,0,0,0" Foreground="{StaticResource Muted}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button x:Name="DeleteSongsButton" Style="{StaticResource StartButton}" Margin="0,12,0,0"
+                    AutomationProperties.Name="Borrar canciones" Click="DeleteSongsButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                    <TextBlock Text="Borrar canciones" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
             <Button Style="{StaticResource SpotifyButton}" Margin="0,22,0,0" HorizontalAlignment="Center"
                     AutomationProperties.Name="Añadir lista de Spotify"
                     Click="SpotifyButton_Click">
@@ -342,6 +455,8 @@
                     <TextBlock Text="Añadir lista de Spotify" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
+            <TextBlock Margin="0,18,0,0" FontSize="13" Foreground="{StaticResource Muted}" HorizontalAlignment="Center"
+                       Text="Las canciones que cargues se guardan solas en «Tus canciones»."/>
         </StackPanel>
 
         <!-- Reproductor -->
@@ -367,6 +482,12 @@
                     <Button Style="{StaticResource LinkButton}" Content="＋  Añadir canciones" Click="LoadButton_Click"/>
                     <Button Style="{StaticResource LinkButton}" Content="＋  Lista de Spotify" Margin="16,0,0,0"
                             Click="SpotifyButton_Click"/>
+                    <!-- Solo se ve si hay canciones guardadas que no están cargadas -->
+                    <Button x:Name="TopLibraryButton" Style="{StaticResource LinkButton}" Margin="16,0,0,0"
+                            Visibility="Collapsed" Click="LibraryButton_Click"/>
+                    <Button x:Name="TopDeleteButton" Style="{StaticResource LinkButton}" Content="Borrar"
+                            ToolTip="Borrar canciones de «Tus canciones»" AutomationProperties.Name="Borrar canciones"
+                            Margin="16,0,0,0" Visibility="Collapsed" Click="DeleteSongsButton_Click"/>
                     <TextBlock x:Name="SongCountText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
                     <TextBlock x:Name="SpotifyStatusText" FontSize="13" Foreground="{StaticResource SpotifyGreen}" Margin="16,0,0,0"/>
                     <TextBlock x:Name="CatalogStatusText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
@@ -547,6 +668,36 @@
                                 Margin="22,0,0,0" Click="SpotifyAdd_Click"/>
                     </StackPanel>
                 </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Panel Borrar canciones: se eligen con casillas las guardadas que se quitan -->
+        <Grid x:Name="DeleteOverlay" Background="#CC000000" Visibility="Collapsed" Focusable="True" KeyDown="DeleteOverlay_KeyDown">
+            <Border Background="#161616" CornerRadius="18" Padding="28,24" Margin="20"
+                    MaxWidth="620" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Borrar canciones" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Row="1" Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+                               Text="Marca las que quieras quitar de «Tus canciones». Los archivos .mp3 de tu PC no se borran: puedes volver a cargarlos cuando quieras."/>
+                    <Button x:Name="SelectAllButton" Grid.Row="2" Style="{StaticResource LinkButton}" Margin="12,16,0,6"
+                            HorizontalAlignment="Left" Click="SelectAllButton_Click"/>
+                    <ScrollViewer Grid.Row="3" MaxHeight="400" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="DeleteList"/>
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                        <Button Style="{StaticResource LinkButton}" Content="Cancelar" FontSize="14" VerticalAlignment="Center"
+                                Click="DeleteCancel_Click"/>
+                        <Button x:Name="ConfirmDeleteButton" Style="{StaticResource DangerButton}"
+                                Margin="22,0,0,0" Click="ConfirmDelete_Click"/>
+                    </StackPanel>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

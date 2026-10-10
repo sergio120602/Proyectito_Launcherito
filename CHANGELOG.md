@@ -6,6 +6,19 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.6] - 2026-10-10
+
+### Añadido
+- **Las canciones se guardan**: cada `.mp3` que se carga (también con *Abrir con*) y cada canción de una lista de Spotify se apunta sola en `%LOCALAPPDATA%\Launcherito\canciones.json`, con su título y artista (`SongLibrary`). De las de Spotify se guardan todos sus datos, así vuelven a salir sin preguntar a Spotify.
+- **Pantalla inicial con tres botones**: «Cargar Archivos», **«Tus canciones»** (carga todas las guardadas; muestra cuántas hay) y **«Borrar canciones»**. Los dos nuevos están desactivados mientras no haya nada guardado. Debajo, un aviso de que las canciones se guardan solas.
+- **Borrar canciones**: panel con una casilla por canción (título, artista y si es `.mp3`, de Spotify o ya no se encuentra), «Seleccionar todas» y un botón rojo «Borrar N canciones» que pide confirmación. Solo se quitan de Launcherito: los archivos `.mp3` del PC no se borran. Si se borra la que suena, pasa a la siguiente; si no queda ninguna, se vuelve a la pantalla inicial.
+- En la barra superior, «Borrar» y «♫ +N» (cargar las guardadas que faltan), que solo aparece si hay guardadas sin cargar.
+- Si un `.mp3` guardado ya no está en su sitio, «Tus canciones» lo avisa y en el panel de borrar aparece marcado como «no se encuentra».
+
+### Cambiado
+- Las canciones de Spotify que ya tienes en `.mp3` también se quitan de las guardadas: basta con el `.mp3`.
+- El ejecutable de la raíz del proyecto se llama siempre `Launcherito.exe` y se sobrescribe en cada versión, en lugar de dejar uno nuevo por versión (`Launcherito v1.x.exe`).
+
 ## [1.5] - 2026-10-10
 
 ### Añadido
