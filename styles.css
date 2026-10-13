@@ -124,7 +124,8 @@ h1 { font-size: clamp(2.5rem, 6vw, 4.2rem); line-height: 1.08; margin: 0 0 1.2re
 .cta { display: flex; gap: 1rem; flex-wrap: wrap; }
 
 .hero-art { position: relative; justify-self: center; max-width: 420px; }
-.hero-art img { position: relative; border-radius: 22%; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); animation: float 6s ease-in-out infinite; }
+.hero-text, .hero-art, .split > * { min-width: 0; }
+.hero-art img { position: relative; width: 100%; height: auto; border-radius: 22%; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); animation: float 6s ease-in-out infinite; }
 .glow {
     position: absolute;
     inset: 8%;
