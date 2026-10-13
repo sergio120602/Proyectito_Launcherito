@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Launcherito · Tu música, a tu manera</title>
+    <meta name="description" content="Launcherito: un launcher de música bonito, rápido y personalizable para Windows y Android. Mosaico de portadas, vídeos de YouTube, listas de Spotify y mucho más." />
+    <meta property="og:title" content="Launcherito · Tu música, a tu manera" />
+    <meta property="og:description" content="Launcher de música para Windows y Android: mosaico de portadas, vídeos de YouTube y listas de Spotify." />
+    <meta property="og:image" content="https://sergio120602.github.io/Proyectito_Launcherito/images/logo.png" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <link rel="icon" href="images/icon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="images/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <header class="nav">
+        <a class="brand" href="#inicio">
+            <img src="images/icon.png" alt="" width="34" height="34" />
+            <span>Launcherito</span>
+        </a>
+        <button class="menu-btn" aria-label="Abrir menú" aria-expanded="false">☰</button>
+        <nav class="links">
+            <a href="#funciones">Funciones</a>
+            <a href="#android">Android</a>
+            <a href="#hoja-de-ruta">Hoja de ruta</a>
+            <a href="#descargar">Descargar</a>
+            <a class="btn btn-small" href="https://github.com/sergio120602/Proyectito_Launcherito" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+    </header>
+
+    <main>
+        <!-- ===== Portada ===== -->
+        <section id="inicio" class="hero">
+            <div class="notes" aria-hidden="true">
+                <span>♪</span><span>♫</span><span>♬</span><span>♩</span><span>♪</span><span>♫</span><span>♬</span><span>♩</span>
+            </div>
+            <div class="hero-inner">
+                <div class="hero-text">
+                    <p class="badge">Versión <strong class="js-version">1.10.1</strong> · Windows y Android</p>
+                    <h1>Tu música,<br /><span class="grad">a tu manera</span></h1>
+                    <p class="lead">
+                        Launcherito es un launcher de música bonito, rápido y personalizable.
+                        Tus canciones como un mosaico de portadas, el vídeo de YouTube de lo que suena
+                        y tus listas de Spotify, todo en un solo sitio.
+                    </p>
+                    <div class="cta">
+                        <a class="btn" href="#descargar">Descargar gratis</a>
+                        <a class="btn btn-ghost" href="https://github.com/sergio120602/Proyectito_Launcherito" target="_blank" rel="noopener">Ver el código</a>
+                    </div>
+                </div>
+                <div class="hero-art">
+                    <div class="glow"></div>
+                    <img src="images/logo.png" alt="Logo de Launcherito: un canguro con auriculares y su cría con un móvil" width="512" height="512" />
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== Funciones ===== -->
+        <section id="funciones" class="section">
+            <h2>Qué puedes hacer ya</h2>
+            <p class="section-sub">Escuchar música tendría que ser tan agradable como la propia música.</p>
+            <div class="grid">
+                <article class="card reveal">
+                    <div class="icon">🧱</div>
+                    <h3>Vista mosaico</h3>
+                    <p>Todas tus canciones como un mosaico de portadas. La que suena se ve en grande, con la barra y los controles dentro de la propia portada.</p>
+                </article>
+                <article class="card reveal">
+                    <div class="icon">🎬</div>
+                    <h3>Vista original con vídeo</h3>
+                    <p>Arriba se ve el vídeo de YouTube de la canción que suena, manejado con los controles del programa. Sin vídeo o sin conexión, suena el <code>.mp3</code>.</p>
+                </article>
+                <article class="card reveal">
+                    <div class="icon spotify">🟢</div>
+                    <h3>Listas de Spotify</h3>
+                    <p>Pega el enlace de una lista pública o un álbum y sus canciones entran en el mosaico. Sin cuenta ni Premium.</p>
+                </article>
+                <article class="card reveal">
+                    <div class="icon">🎤</div>
+                    <h3>Artistas y géneros</h3>
+                    <p>Las canciones se clasifican solas con la API de Deezer, con la foto de cada artista y una imagen para cada género.</p>
+                </article>
+                <article class="card reveal">
+                    <div class="icon">✏️</div>
+                    <h3>Modo edición</h3>
+                    <p>Mueve las portadas y cámbiales el tamaño con el tirador. El orden y los tamaños se guardan entre sesiones.</p>
+                </article>
+                <article class="card reveal">
+                    <div class="icon">💾</div>
+                    <h3>Tus canciones</h3>
+                    <p>Todo lo que cargas se guarda. Con un botón lo vuelves a cargar, y eliges con casillas lo que quieres quitar.</p>
+                </article>
+                <article class="card reveal">
+                    <div class="icon">🔎</div>
+                    <h3>Buscador</h3>
+                    <p>Encuentra canciones por nombre o artista, sin importar mayúsculas ni tildes. Pulsa <kbd>Ctrl</kbd>+<kbd>F</kbd> y listo.</p>
+                </article>
+                <article class="card reveal">
+                    <div class="icon">🔀</div>
+                    <h3>Reproducción sin límites</h3>
+                    <p>Carga varios <code>.mp3</code> a la vez o ábrelos con <em>Abrir con → Launcherito</em>. Modo aleatorio u orden alfabético.</p>
+                </article>
+            </div>
+        </section>
+
+        <!-- ===== Android ===== -->
+        <section id="android" class="section alt">
+            <div class="split">
+                <div class="phone reveal" aria-hidden="true">
+                    <div class="phone-screen">
+                        <div class="tiles">
+                            <div class="tile big"><span class="play-dot">▶</span></div>
+                            <div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                            <div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                        </div>
+                        <div class="notif">
+                            <img src="images/icon.png" alt="" />
+                            <div><strong>Launcherito</strong><small>⏮ ⏸ ⏭</small></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="split-text reveal">
+                    <h2>También en tu móvil</h2>
+                    <p class="lead">La misma aplicación en Android, con todo lo anterior: mosaico, vista original con vídeo, artistas y géneros, listas de Spotify y buscador.</p>
+                    <ul class="checks">
+                        <li>La música sigue sonando con la pantalla apagada.</li>
+                        <li>Controles en la notificación, en la pantalla de bloqueo y en los auriculares.</li>
+                        <li>Comparte una lista desde la app de Spotify directamente a Launcherito.</li>
+                        <li>Letra pequeña o grande: se ve bien tenga el móvil la letra que tenga.</li>
+                        <li>Android 8 o posterior.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== Hoja de ruta ===== -->
+        <section id="hoja-de-ruta" class="section">
+            <h2>Hoja de ruta</h2>
+            <p class="section-sub">Lo que ya está hecho y lo que viene.</p>
+            <ol class="timeline">
+                <li class="done reveal"><span class="ver">1.0</span><p>Nueva interfaz: vista mosaico con controles dentro de la portada.</p></li>
+                <li class="done reveal"><span class="ver">1.2</span><p>Pestañas Artistas y Géneros con la API de Deezer.</p></li>
+                <li class="done reveal"><span class="ver">1.3</span><p>Listas y álbumes de Spotify desde un enlace.</p></li>
+                <li class="done reveal"><span class="ver">1.5</span><p>Modo edición del mosaico, guardado entre sesiones.</p></li>
+                <li class="done reveal"><span class="ver">1.8</span><p>Vista original con el vídeo de YouTube de la canción.</p></li>
+                <li class="done reveal"><span class="ver">1.10</span><p>Versión para Android con música en segundo plano.</p></li>
+                <li class="next reveal"><span class="ver">2.0</span><p>Menú de carga: una canción, varias o una carpeta entera.</p></li>
+                <li class="next reveal"><span class="ver">2.1</span><p>Sistema de temas y personalización.</p></li>
+                <li class="next reveal"><span class="ver">2.2</span><p>Visualizador de audio y color dinámico según la carátula.</p></li>
+                <li class="next reveal"><span class="ver">2.3</span><p>Ecualizador, atajos globales y mini‑reproductor.</p></li>
+                <li class="next reveal"><span class="ver">2.4</span><p>Letras sincronizadas y estadísticas de escucha.</p></li>
+            </ol>
+            <p class="center"><a href="https://github.com/sergio120602/Proyectito_Launcherito/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Ver el registro de cambios completo →</a></p>
+        </section>
+
+        <!-- ===== Descargar ===== -->
+        <section id="descargar" class="section alt">
+            <h2>Descargar Launcherito</h2>
+            <p class="section-sub">Última versión: <strong class="js-version">1.10.1</strong> · Gratis</p>
+            <div class="downloads">
+                <article class="dl reveal">
+                    <div class="dl-icon">🪟</div>
+                    <h3>Windows</h3>
+                    <p>Descomprime el <code>.zip</code> y abre <code>Launcherito.exe</code>. No necesita instalación ni .NET.</p>
+                    <a class="btn js-dl-win" href="https://github.com/sergio120602/Proyectito_Launcherito/releases/latest">Descargar .zip</a>
+                </article>
+                <article class="dl reveal">
+                    <div class="dl-icon">🤖</div>
+                    <h3>Android</h3>
+                    <p>Instala el <code>.apk</code> (Android 8+). Tendrás que permitir instalar apps de origen desconocido.</p>
+                    <a class="btn js-dl-apk" href="https://github.com/sergio120602/Proyectito_Launcherito/releases/latest">Descargar .apk</a>
+                </article>
+            </div>
+
+            <details class="build reveal">
+                <summary>¿Prefieres compilarlo tú mismo?</summary>
+                <p>Windows (necesitas el <a href="https://dotnet.microsoft.com/download" target="_blank" rel="noopener">SDK de .NET 10</a>):</p>
+                <div class="code">
+                    <pre id="build-win">git clone https://github.com/sergio120602/Proyectito_Launcherito.git
+cd Proyectito_Launcherito/src/Launcherito
+dotnet run</pre>
+                    <button class="copy" data-target="build-win">Copiar</button>
+                </div>
+                <p>Android (o abre la carpeta <code>android</code> en Android Studio):</p>
+                <div class="code">
+                    <pre id="build-apk">cd Proyectito_Launcherito/android
+./gradlew assembleRelease</pre>
+                    <button class="copy" data-target="build-apk">Copiar</button>
+                </div>
+            </details>
+        </section>
+
+        <!-- ===== Tecnología ===== -->
+        <section class="section">
+            <h2>Hecho con</h2>
+            <ul class="tech reveal">
+                <li>C# / WPF</li><li>.NET 10</li><li>TagLibSharp</li><li>WebView2</li>
+                <li>Kotlin</li><li>Jetpack Compose</li><li>Media3 ExoPlayer</li><li>Coil</li><li>OkHttp</li>
+                <li>API de Deezer</li>
+            </ul>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <img src="images/icon.png" alt="" width="48" height="48" />
+        <p>Hecho con 💜 y mucha música por <a href="https://github.com/sergio120602" target="_blank" rel="noopener">Sergio</a>.</p>
+        <p class="small">
+            <a href="https://github.com/sergio120602/Proyectito_Launcherito/issues" target="_blank" rel="noopener">Ideas y sugerencias</a> ·
+            Proyecto personal · © <span id="year"></span>
+        </p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
