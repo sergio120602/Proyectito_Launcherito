@@ -6,6 +6,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+## [1.11.1] - 2026-11-24
+
+### Corregido
+- **Android: la app se cerraba nada más abrirla** en la versión publicada (la 1.11). WorkManager, que renueva «Del momento» cada día, crea su base de datos por reflexión, y R8 (que reduce el código de la versión de publicación) quitaba el constructor que necesita. Las versiones de desarrollo no pasan por R8, por eso no se vio antes. Se arregla con dos reglas en `proguard-rules.pro`.
+- Quien instaló la 1.11 en el móvil no puede abrirla ni usar el botón de actualizar: tiene que instalar esta a mano una vez (se instala encima, sin perder nada). En Windows la 1.11 funciona bien y esta versión es igual.
+
+## [1.11] - 2026-11-24
+
 ### Añadido
 - **Del momento** (Windows y Android): pestaña con las playlists más escuchadas de Spotify (Top 50 España y Global, Éxitos España, Today's Top Hits, Viva Latino, Baila Reggaeton, Pop Rising y RapCaviar), con su portada. También hay un botón «Del momento» en la pantalla inicial.
   - **Se renuevan cada día a las 7:00** con la tarea programada de Windows «Launcherito - Playlists del momento», que abre `Launcherito.exe --actualizar-del-momento` sin ventana. Si el PC estaba apagado, la tarea se hace al encenderlo, y la aplicación también las renueva si al abrirla (o mientras está abierta) ya ha pasado la hora. «Actualizar ahora» las renueva al momento.
@@ -36,10 +44,21 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
   - **Windows**: se descarga el `.zip` de la versión, el `Launcherito.exe` nuevo ocupa el sitio del actual y Launcherito se vuelve a abrir solo. Si la carpeta no se puede escribir (p. ej. *Archivos de programa*), lo explica y ofrece la página de GitHub.
   - **Android**: se descarga el `.apk` y se abre el instalador del sistema, que pide confirmar. La primera vez Android pide permitir que Launcherito instale apps. Si la versión nueva está firmada con otra clave (Android no la instalaría encima), se avisa en lugar de fallar.
   - Las versiones anteriores a esta no tienen el botón: para llegar a la primera que lo tiene hay que actualizar a mano una vez.
+- **Listas y álbumes de YouTube Music**, en Windows y en Android. Botón «Añadir lista de YouTube Music» en la pantalla inicial y «＋ Lista de YouTube Music» arriba (en Android, en el menú ⋮). Se pega el enlace de una lista pública o no listada, o de un álbum, sin cuenta ni Premium, y sus canciones entran en el mosaico con su portada.
+  - Valen los enlaces de `music.youtube.com/playlist?list=…`, `music.youtube.com/browse/MPREb_…` (página de un álbum) y cualquier enlace de `youtube.com` o `youtu.be` con `list=`.
+  - Se leen hasta 500 canciones por lista (Spotify se queda en 100).
+  - Cada canción **suena con su propio vídeo** (ya viene en la lista, no hace falta buscarlo). Si ese vídeo no se puede ver dentro de la aplicación, se prueba con los que da YouTube al buscar la canción.
+  - De los videoclips se limpia el título: «Artista - Canción (Official Video)» queda en «Canción». En los subidos por cualquiera, el artista es el de delante del guion, no el canal.
+  - Las que ya tienes en `.mp3` suenan enteras y no se repiten, como con Spotify.
+  - Los mix y las listas privadas («Me gusta», «Ver más tarde») no se pueden leer sin entrar en la cuenta: se explica con un aviso.
+- Marca de procedencia de YouTube Music en cada portada: un círculo rojo con un aro y el triángulo de reproducir. En «Borrar canciones» salen como «YouTube Music», en rojo.
+- Android: al compartir una lista o un álbum desde la app de YouTube Music y elegir Launcherito, se abre el cuadro con el enlace ya puesto.
 
 ### Cambiado
 - Los controles de reproducción son algo más anchos para que quepan el corazón y el ＋ (dentro de una portada pequeña se reducen como antes).
 - Al borrar canciones de «Tus canciones» también se quitan de Favoritos y de las playlists. Si una canción de Spotify o YouTube Music se cambia por el `.mp3` que ya tienes, en las playlists pasa a estar el `.mp3`, en el mismo sitio.
+- El cuadro del enlace sirve para los dos servicios: toma el título y el color del botón con que se abre, pero admite el enlace de Spotify o de YouTube Music.
+- Los avisos de la barra de arriba van en verde si son de Spotify y en rojo si son de YouTube Music. En Android, los de Spotify antes iban en gris.
 
 ### Corregido
 - Una lista de Spotify cuya portada trae el ancho vacío ya no cierra el programa (pasaba al leer la portada de la propia lista).
@@ -56,25 +75,6 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 - Barra de reproducción: en Windows, la de abajo (`PlayerBar`) sale de la vista de categorías y pasa a una fila propia del reproductor que comparten todas las vistas. `UpdatePlayerBar` decide si se ve y `MoveControls` lleva allí el único juego de controles cuando la franja de abajo de la portada que suena (donde van sus controles) queda fuera de lo visible; se comprueba en cada desplazamiento. En Android, `MosaicView` hace la misma cuenta con su desplazamiento y pone `BottomBar` encima del mosaico, con animación. Al final del mosaico se deja también el sitio que tapa la barra.
 - Actualizaciones: `Updater` (Windows, `MainWindow.Update.cs`) y `AppUpdater` (Android, `Updates.kt`) preguntan a la API de GitHub por la última Release y, si no responde (admite 60 consultas por hora desde una conexión sin cuenta), miran a qué versión lleva `releases/latest` y usan los nombres fijos de los archivos: **`Launcherito-vX-win-x64.zip`** y **`Launcherito-vX.apk`**. En Windows el `.exe` abierto se renombra a `Launcherito.old.exe` (se deja renombrar, no sobrescribir) y se borra al abrir la siguiente vez. En Android, permiso `REQUEST_INSTALL_PACKAGES` y un `FileProvider` (`res/xml/update_paths.xml`) para pasar el `.apk` al instalador.
 - **Importante al publicar una versión**: la etiqueta debe coincidir con `VERSION`, los archivos deben llamarse como arriba y el `.apk` debe firmarse **siempre con la misma clave**. El de la v1.10.1 está firmado con una clave de depuración distinta de la de este PC, así que un `.apk` compilado aquí no se puede instalar encima de él. Conviene crear una clave propia de publicación y usarla a partir de ahora.
-
-## [1.11] - 2026-11-20
-
-### Añadido
-- **Listas y álbumes de YouTube Music**, en Windows y en Android. Botón «Añadir lista de YouTube Music» en la pantalla inicial y «＋ Lista de YouTube Music» arriba (en Android, en el menú ⋮). Se pega el enlace de una lista pública o no listada, o de un álbum, sin cuenta ni Premium, y sus canciones entran en el mosaico con su portada.
-  - Valen los enlaces de `music.youtube.com/playlist?list=…`, `music.youtube.com/browse/MPREb_…` (página de un álbum) y cualquier enlace de `youtube.com` o `youtu.be` con `list=`.
-  - Se leen hasta 500 canciones por lista (Spotify se queda en 100).
-  - Cada canción **suena con su propio vídeo** (ya viene en la lista, no hace falta buscarlo). Si ese vídeo no se puede ver dentro de la aplicación, se prueba con los que da YouTube al buscar la canción.
-  - De los videoclips se limpia el título: «Artista - Canción (Official Video)» queda en «Canción». En los subidos por cualquiera, el artista es el de delante del guion, no el canal.
-  - Las que ya tienes en `.mp3` suenan enteras y no se repiten, como con Spotify.
-  - Los mix y las listas privadas («Me gusta», «Ver más tarde») no se pueden leer sin entrar en la cuenta: se explica con un aviso.
-- Marca de procedencia de YouTube Music en cada portada: un círculo rojo con un aro y el triángulo de reproducir. En «Borrar canciones» salen como «YouTube Music», en rojo.
-- Android: al compartir una lista o un álbum desde la app de YouTube Music y elegir Launcherito, se abre el cuadro con el enlace ya puesto.
-
-### Cambiado
-- El cuadro del enlace sirve para los dos servicios: toma el título y el color del botón con que se abre, pero admite el enlace de Spotify o de YouTube Music.
-- Los avisos de la barra de arriba van en verde si son de Spotify y en rojo si son de YouTube Music. En Android, los de Spotify antes iban en gris.
-
-### Técnico
 - `OnlineSongs` reúne lo común a Spotify y YouTube Music: el registro de canciones (`OnlineTrack`, antes `SpotifyTrack`), reconocer enlaces, leer listas, la caché de portadas y la clave para reconocer un `.mp3` que ya se tiene. `SpotifyLibrary` solo lee Spotify.
 - `YouTubeMusicLibrary` usa el mismo servicio que la web de YouTube Music (`youtubei/v1/browse`, cliente `WEB_REMIX`), de 100 en 100 canciones. Busca los datos por nombre de campo y no por su ruta exacta, para aguantar mejor los cambios de YouTube.
 - Las canciones de YouTube Music se identifican como `ytmusic:<id del vídeo>`. En «Tus canciones» se guarda también la dirección de su portada (`CoverUrl`). Los `canciones.json` anteriores se siguen leyendo igual.

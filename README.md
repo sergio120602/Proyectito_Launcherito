@@ -6,7 +6,7 @@
 
 > Tu música, a tu manera. Un launcher de música bonito, rápido y totalmente personalizable.
 
-![Versión](https://img.shields.io/badge/versión-1.11-blueviolet)
+![Versión](https://img.shields.io/badge/versión-1.11.1-blueviolet)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)
 ![Plataforma](https://img.shields.io/badge/plataforma-Windows%20%7C%20Android-blue)
 
@@ -91,7 +91,8 @@
 | **1.9.1** | Marca de procedencia en cada portada: tus .mp3 en morado, las de Spotify en verde ✅ |
 | **1.10** | Versión para Android, con música en segundo plano y controles en la notificación ✅ |
 | **1.10.1** | Android: opción de letra pequeña o grande y pantalla bien colocada con la letra del móvil aumentada ✅ |
-| **1.11** | Listas y álbumes de YouTube Music, que suenan con su propio vídeo ✅ |
+| **1.11** | YouTube Music, búsqueda en YouTube, favoritos y playlists, «Del momento», barra de reproducción y botón para actualizar ✅ |
+| **1.11.1** | Android: la app ya abre (se cerraba al arrancar en la versión publicada) ✅ |
 | 2.0 | Menú de carga: una canción, varias o una carpeta entera |
 | 2.1 | Sistema de temas y personalización |
 | 2.2 | Visualizador y color dinámico |
