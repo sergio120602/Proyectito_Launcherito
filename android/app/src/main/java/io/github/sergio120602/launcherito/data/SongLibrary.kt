@@ -10,16 +10,31 @@ import java.io.IOException
 import java.text.Collator
 
 /**
- * Canción guardada. [key] es la dirección content:// del .mp3 o la clave de Spotify ("spotify:track:…").
- * De las de Spotify se guardan todos sus datos, porque sin ellos no se pueden volver a mostrar.
+ * Canción guardada. [key] es la dirección content:// del .mp3 o la clave de Spotify ("spotify:track:…")
+ * o de YouTube Music ("ytmusic:…"). De estas se guardan todos sus datos, porque sin ellos no se
+ * pueden volver a mostrar. [coverUrl] solo lo tienen las de YouTube Music.
  */
-class SavedSong(val key: String, var title: String = "", var artist: String = "", val durationMs: Long = 0) {
-    val isSpotify: Boolean get() = SpotifyLibrary.isSpotify(key)
+class SavedSong(
+    val key: String,
+    var title: String = "",
+    var artist: String = "",
+    val durationMs: Long = 0,
+    val coverUrl: String? = null,
+) {
+    /** De dónde viene, o null si es un .mp3. */
+    val source: OnlineSource? get() = OnlineSongs.sourceOf(key)
 
-    fun toTrack() = SpotifyTrack(key.removePrefix(SpotifyLibrary.KEY_PREFIX), title, artist, durationMs)
+    val isOnline: Boolean get() = source != null
+
+    /** La canción de Spotify o YouTube Music guardada. Solo si [isOnline]. */
+    fun toTrack(): OnlineTrack {
+        val source = checkNotNull(source) { "Es un .mp3, no una canción de una lista." }
+        return OnlineTrack(source, key.removePrefix(OnlineSongs.keyPrefix(source)), title, artist, durationMs, coverUrl)
+    }
 
     companion object {
-        fun fromTrack(track: SpotifyTrack) = SavedSong(track.key, track.title, track.artists, track.durationMs)
+        fun fromTrack(track: OnlineTrack) =
+            SavedSong(track.key, track.title, track.artists, track.durationMs, track.coverUrl)
     }
 }
 
@@ -83,6 +98,7 @@ class SongLibrary(context: Context) {
                 put("Title", song.title)
                 put("Artist", song.artist)
                 put("DurationMs", song.durationMs)
+                song.coverUrl?.let { put("CoverUrl", it) }
             })
         }
         val stream = try {
@@ -103,7 +119,10 @@ class SongLibrary(context: Context) {
         val json = JSONArray(String(file.readFully()))
         (0 until json.length()).map { i ->
             val item = json.getJSONObject(i)
-            SavedSong(item.getString("Key"), item.optString("Title"), item.optString("Artist"), item.optLong("DurationMs"))
+            SavedSong(
+                item.getString("Key"), item.optString("Title"), item.optString("Artist"), item.optLong("DurationMs"),
+                item.optStringOrNull("CoverUrl"),
+            )
         }
     } catch (_: IOException) {
         emptyList()   // primera vez (aún no hay archivo)

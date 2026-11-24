@@ -3,7 +3,7 @@ using System.Windows.Media.Imaging;
 
 namespace Launcherito;
 
-/// <summary>Título, artista y carátula de una canción, leídos de sus etiquetas ID3 o de Spotify.</summary>
+/// <summary>Título, artista y carátula de una canción, leídos de sus etiquetas ID3 o de Spotify / YouTube Music.</summary>
 public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
 {
     /// <summary>Artista que se muestra cuando la canción no lo trae en sus etiquetas.</summary>
@@ -23,8 +23,8 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
     /// <param name="previewSize">Si es mayor que 0, ancho de una segunda copia diminuta, sacada de los mismos datos.</param>
     public static SongInfo Read(string path, int maxCoverSize, int previewSize = 0)
     {
-        if (SpotifyLibrary.TryGet(path, out var track))
-            return ReadSpotify(track, maxCoverSize, previewSize);
+        if (OnlineSongs.TryGet(path, out var track))
+            return ReadOnline(track, maxCoverSize, previewSize);
 
         string title = Path.GetFileNameWithoutExtension(path);
         string artist = UnknownArtist;
@@ -61,18 +61,19 @@ public sealed record SongInfo(string Title, string Artist, BitmapImage? Cover)
         };
     }
 
-    /// <summary>Título que se puede mostrar antes de leer las etiquetas: el de Spotify o el nombre del archivo.</summary>
+    /// <summary>Título que se puede mostrar antes de leer las etiquetas: el de la lista o el nombre del archivo.</summary>
     public static string FallbackTitle(string path) =>
-        SpotifyLibrary.TryGet(path, out var track) ? track.Title : Path.GetFileNameWithoutExtension(path);
+        OnlineSongs.TryGet(path, out var track) ? track.Title : Path.GetFileNameWithoutExtension(path);
 
     /// <summary>
-    /// Canción de Spotify: los datos ya se conocen y la portada se descarga (o sale de la caché). El
-    /// artista lleva la marca de YouTube porque suena con su vídeo (no hay .mp3).
+    /// Canción de Spotify o YouTube Music: los datos ya se conocen y la portada se descarga (o sale de
+    /// la caché). El artista lleva la marca de YouTube porque suena con su vídeo (no hay .mp3).
     /// </summary>
-    private static SongInfo ReadSpotify(SpotifyTrack track, int maxCoverSize, int previewSize)
+    private static SongInfo ReadOnline(OnlineTrack track, int maxCoverSize, int previewSize)
     {
-        byte[]? coverData = maxCoverSize > 0 ? SpotifyLibrary.GetCoverData(track) : null;
-        return new SongInfo(track.Title, $"{track.Artists}  ·  vídeo de YouTube",
+        byte[]? coverData = maxCoverSize > 0 ? OnlineSongs.GetCoverData(track) : null;
+        string mark = track.Source == OnlineSource.YouTubeMusic ? "YouTube Music" : "vídeo de YouTube";
+        return new SongInfo(track.Title, $"{track.Artists}  ·  {mark}",
             coverData is null ? null : LoadImage(coverData, maxCoverSize))
         {
             Preview = coverData is null || previewSize <= 0 ? null : LoadImage(coverData, previewSize),

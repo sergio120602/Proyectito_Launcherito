@@ -1,5 +1,10 @@
 package io.github.sergio120602.launcherito.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.VectorConverter
@@ -7,7 +12,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
@@ -36,9 +42,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +61,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,12 +71,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
+import io.github.sergio120602.launcherito.data.OnlineSource
 import io.github.sergio120602.launcherito.data.SongCover
 import io.github.sergio120602.launcherito.data.SongTags
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 private val Gap = 8.dp
@@ -138,12 +151,31 @@ private fun fits(occupied: List<BooleanArray>, row: Int, column: Int, span: Int)
 }
 
 /**
+ * Lo que necesita un mosaico: sus portadas y qué hacer con ellas. Hay dos: el del reproductor (todas
+ * las canciones cargadas, con los controles dentro de la que suena) y el de una playlist (sus
+ * canciones; moverlas cambia el orden de la playlist).
+ *
+ * @param activeKey la portada que lleva dentro los controles (null: ninguna).
+ * @param bottomBar sale la barra de abajo cuando la portada que suena se pierde de vista.
+ */
+class MosaicModel(
+    val tiles: SnapshotStateList<Tile>,
+    val isEditing: () -> Boolean,
+    val activeKey: () -> String?,
+    val onSelect: (String) -> Unit,
+    val onLongPress: (String) -> Unit,
+    val onMove: (Tile, Tile) -> Unit,
+    val onRemember: () -> Unit,
+    val bottomBar: Boolean,
+)
+
+/**
  * Modo edición del mosaico: una portada se mantiene pulsada y se arrastra a otro sitio (las demás se
  * apartan), y con el tirador de su esquina se agranda o se encoge de celda en celda. Al agrandarla,
  * las grandes que quedan debajo se encogen para dejarle sitio; al encogerla, la siguiente crece y
  * ocupa el hueco.
  */
-private class MosaicEditor(private val vm: LauncheritoViewModel) {
+private class MosaicEditor(private val model: MosaicModel) {
     var metrics: MosaicMetrics? = null
     var slots: Map<Tile, Rect> = emptyMap()   // dónde está cada portada ahora mismo
     var gripPx = 0f
@@ -171,7 +203,7 @@ private class MosaicEditor(private val vm: LauncheritoViewModel) {
 
     fun effectiveSpan(tile: Tile): Int {
         val m = metrics ?: return tile.baseSpan
-        val min = if (tile.key == vm.currentKey) m.activeMinSpan else 1
+        val min = if (tile.key == model.activeKey()) m.activeMinSpan else 1
         return max(min, tile.baseSpan).coerceIn(1, m.columns)
     }
 
@@ -190,7 +222,7 @@ private class MosaicEditor(private val vm: LauncheritoViewModel) {
         val target = tileAt(point, except = tile)
         if (target != lastTarget) {
             lastTarget = target
-            if (target != null) vm.moveTileBefore(tile, target)
+            if (target != null) model.onMove(tile, target)
         }
     }
 
@@ -208,7 +240,7 @@ private class MosaicEditor(private val vm: LauncheritoViewModel) {
         val m = metrics ?: return
         // El tamaño lo marca el dedo respecto a la esquina de arriba a la izquierda, por la diagonal.
         val size = max(point.x - resizeOrigin.left, point.y - resizeOrigin.top)
-        val min = if (tile.key == vm.currentKey) m.activeMinSpan else 1
+        val min = if (tile.key == model.activeKey()) m.activeMinSpan else 1
         val span = max(min, m.spanForSize(size))
         if (span == effectiveSpan(tile)) return
 
@@ -229,9 +261,9 @@ private class MosaicEditor(private val vm: LauncheritoViewModel) {
 
     /** La siguiente portada (o la anterior, si es la última) crece lo que ha encogido esta. */
     private fun growNext(tile: Tile, freed: Int, m: MosaicMetrics) {
-        val tiles = vm.tiles.toList()
+        val tiles = model.tiles.toList()
         val at = tiles.indexOf(tile)
-        val neighbour = (tiles.drop(at + 1) + tiles.take(at).reversed()).firstOrNull { it.key != vm.currentKey }
+        val neighbour = (tiles.drop(at + 1) + tiles.take(at).reversed()).firstOrNull { it.key != model.activeKey() }
         if (neighbour != null) neighbour.baseSpan = minOf(m.columns, neighbour.baseSpan + freed)
     }
 
@@ -244,18 +276,20 @@ private class MosaicEditor(private val vm: LauncheritoViewModel) {
         lastTarget = null
         resized = null
         before = emptyMap()
-        vm.rememberArrangement()
+        model.onRemember()
     }
 }
 
 /**
- * Vista mosaico: todas las canciones como portadas de distintos tamaños. La que suena se ve en
- * grande, con la barra y los controles dentro de la propia portada.
+ * Vista mosaico: las canciones como portadas de distintos tamaños. En el del reproductor la que suena
+ * se ve en grande, con la barra y los controles dentro de la propia portada.
  */
 @Composable
-fun MosaicView(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
+fun MosaicView(vm: LauncheritoViewModel, modifier: Modifier = Modifier, model: MosaicModel = vm.mainMosaic) {
     val density = LocalDensity.current
-    val editor = remember(vm) { MosaicEditor(vm) }
+    val editor = remember(model) { MosaicEditor(model) }
+    val editing = model.isEditing()
+    val activeKey = model.activeKey()
     val scroll = rememberScrollState()
     val large = LocalLargeText.current
 
@@ -274,16 +308,32 @@ fun MosaicView(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
         editor.metrics = metrics
         editor.gripPx = with(density) { GripSize.toPx() }
 
-        val tiles = vm.tiles.toList()
+        val tiles = model.tiles.toList()
         val spans = tiles.map(editor::effectiveSpan)
         val (spots, rows) = packMosaic(spans, columns)
         val slots = tiles.indices.associate { i -> tiles[i] to metrics.slot(spots[i].first, spots[i].second, spans[i]) }
         editor.slots = slots
         val height = if (rows == 0) 0f else rows * cell + (rows - 1) * gap
-        val activeIndex = tiles.indexOfFirst { it.key == vm.currentKey }
+        val activeIndex = tiles.indexOfFirst { it.key == activeKey }
+        val activeSlot = tiles.getOrNull(activeIndex)?.let { slots[it] }
+
+        // La barra de abajo sale cuando los controles de la portada que suena (en su franja de abajo)
+        // se han perdido de vista al desplazarse, para pausar o cambiar de canción sin ir a buscarla.
+        // Va encima del mosaico, sin cambiar su alto: al volver la portada, sus controles están justo
+        // debajo de la barra y no hay saltos.
+        val controlsLost = model.bottomBar && activeSlot != null && run {
+            val band = min(activeSlot.height / 2, with(density) { 150.dp.toPx() })
+            val line = activeSlot.bottom - band / 2
+            line < scroll.value || line > scroll.value + viewport
+        }
+        var barHeight by remember { mutableIntStateOf(0) }
+        val scope = rememberCoroutineScope()
+        val goToSong: () -> Unit = {
+            activeSlot?.let { slot -> scope.launch { scroll.animateScrollTo((slot.top - gap).toInt().coerceAtLeast(0)) } }
+        }
 
         // Al cambiar de canción, la que suena se pone a la vista.
-        LaunchedEffect(vm.currentKey, columns) {
+        LaunchedEffect(activeKey, columns) {
             val slot = tiles.getOrNull(activeIndex)?.let { slots[it] } ?: return@LaunchedEffect
             if (slot.top < scroll.value || slot.bottom > scroll.value + viewport) {
                 scroll.animateScrollTo((slot.top - gap).toInt().coerceAtLeast(0))
@@ -309,9 +359,10 @@ fun MosaicView(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(with(density) { height.toDp() } + 96.dp)   // sitio al final para no tapar la última
-                    .pointerInput(vm.isEditing) {
-                        if (!vm.isEditing) return@pointerInput
+                    // Sitio al final para no tapar la última (con la barra de abajo, también lo que ella tapa).
+                    .height(with(density) { height.toDp() + if (controlsLost) barHeight.toDp() else 0.dp } + 96.dp)
+                    .pointerInput(editing) {
+                        if (!editing) return@pointerInput
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val tile = editor.tileAt(down.position) ?: return@awaitEachGesture
@@ -342,7 +393,7 @@ fun MosaicView(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
                         // Solo se cargan las portadas visibles (y una pantalla por encima y por debajo).
                         val near = slot.bottom >= scroll.value - viewport && slot.top <= scroll.value + 2 * viewport
                         PlacedTile(
-                            vm, editor, tile, slot,
+                            vm, model, editor, tile, slot,
                             active = i == activeIndex,
                             showCover = near,
                             // El mosaico se forma desde la canción que suena hacia fuera.
@@ -352,12 +403,22 @@ fun MosaicView(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        if (model.bottomBar) AnimatedVisibility(
+            visible = controlsLost,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            BottomBar(vm, Modifier.onSizeChanged { barHeight = it.height }, onGoToSong = goToSong)
+        }
     }
 }
 
 @Composable
 private fun PlacedTile(
     vm: LauncheritoViewModel,
+    model: MosaicModel,
     editor: MosaicEditor,
     tile: Tile,
     slot: Rect,
@@ -399,13 +460,15 @@ private fun PlacedTile(
                 alpha = appear.value
             },
     ) {
-        MosaicTileContent(vm, tile, active, showCover)
+        MosaicTileContent(vm, model, tile, active, showCover)
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MosaicTileContent(vm: LauncheritoViewModel, tile: Tile, active: Boolean, showCover: Boolean) {
+private fun MosaicTileContent(vm: LauncheritoViewModel, model: MosaicModel, tile: Tile, active: Boolean, showCover: Boolean) {
     val shape = RoundedCornerShape(TileRadius)
+    val editing = model.isEditing()
     val title = vm.meta[tile.key]?.title ?: SongTags.fallbackTitle(tile.key)
     Box(
         Modifier
@@ -413,8 +476,14 @@ private fun MosaicTileContent(vm: LauncheritoViewModel, tile: Tile, active: Bool
             .clip(shape)
             .background(EmptyFill)
             .then(if (active) Modifier.border(2.dp, Accent, shape) else Modifier)
-            // En modo edición pulsar no hace nada: se mantiene pulsada para moverla.
-            .then(if (!active && !vm.isEditing) Modifier.clickable { vm.selectSong(tile.key) } else Modifier),
+            // En modo edición pulsar no hace nada: se mantiene pulsada para moverla. Fuera de él,
+            // mantenerla pulsada abre el menú de Favoritos y playlists.
+            .then(
+                if (!active && !editing) Modifier.combinedClickable(
+                    onClick = { model.onSelect(tile.key) },
+                    onLongClick = { model.onLongPress(tile.key) },
+                ) else Modifier
+            ),
     ) {
         Icon(
             Icons.Rounded.MusicNote, contentDescription = null, tint = PlaceholderColor,
@@ -429,11 +498,18 @@ private fun MosaicTileContent(vm: LauncheritoViewModel, tile: Tile, active: Bool
             )
         }
 
-        // Marca de procedencia: morada con una nota si es tu .mp3, verde con las ondas si es de Spotify.
+        // Marca de procedencia: morada con una nota si es tu .mp3, verde con las ondas si es de Spotify,
+        // roja con un aro y el triángulo si es de YouTube Music.
         Box(Modifier.align(Alignment.TopStart).padding(8.dp)) {
-            if (tile.isSpotify) SpotifyBadge(22.dp) else OwnBadge(22.dp)
+            when (tile.source) {
+                OnlineSource.Spotify -> SpotifyBadge(22.dp)
+                OnlineSource.YouTubeMusic -> YouTubeMusicBadge(22.dp)
+                null -> OwnBadge(22.dp)
+            }
         }
-        if (tile.isSpotify) {
+        // Las de Spotify suenan con un vídeo de YouTube: se avisa con la marca roja de la derecha.
+        // Las de YouTube Music ya lo dicen con su propia marca.
+        if (tile.source == OnlineSource.Spotify) {
             YouTubeBadge(Modifier.align(Alignment.TopEnd).padding(8.dp))
         }
 
@@ -453,10 +529,10 @@ private fun MosaicTileContent(vm: LauncheritoViewModel, tile: Tile, active: Bool
                 title,
                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().background(shade)
-                    .padding(start = 8.dp, end = if (vm.isEditing) 34.dp else 8.dp, top = 18.dp, bottom = 6.dp),
+                    .padding(start = 8.dp, end = if (editing) 34.dp else 8.dp, top = 18.dp, bottom = 6.dp),
             )
         }
-        if (vm.isEditing) ResizeGrip(Modifier.align(Alignment.BottomEnd).padding(4.dp))
+        if (editing) ResizeGrip(Modifier.align(Alignment.BottomEnd).padding(4.dp))
     }
 }
 
@@ -492,6 +568,22 @@ fun SpotifyBadge(size: Dp) {
             moveTo(8.1f * k, 15.6f * k); quadraticTo(12f * k, 14.4f * k, 15.6f * k, 16.3f * k)
         }
         drawPath(path, Color.Black, style = Stroke(width = 1.8f * k, cap = StrokeCap.Round))
+    }
+}
+
+/** De YouTube Music: el círculo rojo con un aro blanco y el triángulo de reproducir. */
+@Composable
+fun YouTubeMusicBadge(size: Dp) {
+    Canvas(Modifier.size(size).clip(CircleShape).background(YouTubeRed)) {
+        val k = this.size.width / 24f
+        drawCircle(Color.White, radius = 5.5f * k, center = Offset(12f * k, 12f * k), style = Stroke(width = 1.4f * k))
+        val play = Path().apply {
+            moveTo(10.3f * k, 9.4f * k)
+            lineTo(14.8f * k, 12f * k)
+            lineTo(10.3f * k, 14.6f * k)
+            close()
+        }
+        drawPath(play, Color.White)
     }
 }
 

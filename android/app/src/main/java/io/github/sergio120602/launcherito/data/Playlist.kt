@@ -14,6 +14,7 @@ class Playlist(private val titleOf: (String) -> String) {
     private val songs = mutableListOf<String>()        // claves en orden alfabético
     private val known = HashSet<String>()
     private var order = mutableListOf<Int>()           // índices de songs en orden de reproducción
+    private var rank: Map<String, Int>? = null         // orden propio (el de una playlist del usuario)
 
     /** Posición (empezando en 0) de la canción actual en el orden de reproducción. */
     var position = -1
@@ -36,6 +37,27 @@ class Playlist(private val titleOf: (String) -> String) {
             field = value
             rebuildOrder(current)
         }
+
+    /** Sin aleatorio se sigue el orden de una playlist del usuario en lugar del alfabético. */
+    val hasCustomOrder: Boolean get() = rank != null
+
+    /**
+     * Orden en que suenan sin aleatorio: el de [keys] (las que no estén en ella van al final, en orden
+     * alfabético). null vuelve al orden alfabético. El mosaico no cambia.
+     */
+    fun setCustomOrder(keys: List<String>?) {
+        rank = keys?.let { list -> HashMap<String, Int>().also { map -> list.forEachIndexed { i, k -> map.putIfAbsent(k, i) } } }
+        if (!shuffle) rebuildOrder(current)
+    }
+
+    /** Vacía la lista (y olvida el orden propio). */
+    fun clear() {
+        songs.clear()
+        known.clear()
+        order.clear()
+        position = -1
+        rank = null
+    }
 
     /** Añade canciones ignorando las repetidas. Devuelve cuántas se han añadido. */
     fun add(keys: Iterable<String>): Int {
@@ -107,6 +129,8 @@ class Playlist(private val titleOf: (String) -> String) {
     private fun rebuildOrder(current: String?) {
         order = songs.indices.toMutableList()
         val currentIndex = if (current == null) -1 else songs.indexOf(current)
+        // Orden de la playlist; sortedBy es estable, así que las que no están en ella siguen en orden alfabético.
+        rank?.let { r -> if (!shuffle) order = order.sortedBy { r[songs[it]] ?: Int.MAX_VALUE }.toMutableList() }
         if (shuffle) {
             order.shuffle(Random)   // Fisher-Yates
             // La canción que está sonando pasa a ser la primera del nuevo orden aleatorio.

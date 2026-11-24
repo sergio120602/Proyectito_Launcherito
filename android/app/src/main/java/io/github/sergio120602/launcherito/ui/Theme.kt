@@ -22,6 +22,7 @@ val DangerRed = Color(0xFFEF4444)
 val SpotifyGreen = Color(0xFF1DB954)
 val YouTubeRed = Color(0xFFFF0033)
 val StopEditGreen = Color(0xFF16A34A)
+val FavoritePink = Color(0xFFF472B6)
 
 private val colors = darkColorScheme(
     primary = Accent,

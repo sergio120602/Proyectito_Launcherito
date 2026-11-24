@@ -16,8 +16,12 @@ public sealed class Playlist
     private List<int> _order = new();                                   // índices de _songs en orden de reproducción
     private int _position = -1;                                         // posición actual dentro de _order
     private bool _shuffle = true;                                       // aleatorio activado por defecto
+    private Dictionary<string, int>? _rank;                             // orden propio (el de una playlist del usuario)
 
     public int Count => _songs.Count;
+
+    /// <summary>Sin aleatorio se sigue el orden de una playlist del usuario en lugar del alfabético.</summary>
+    public bool HasCustomOrder => _rank is not null;
 
     /// <summary>Todas las canciones en orden alfabético (el orden del mosaico).</summary>
     public IReadOnlyList<string> Songs => _songs;
@@ -41,6 +45,33 @@ public sealed class Playlist
             _shuffle = value;
             RebuildOrder();
         }
+    }
+
+    /// <summary>
+    /// Orden en que suenan sin aleatorio: el de <paramref name="keys"/> (las que no estén en ella van
+    /// al final, en orden alfabético). null vuelve al orden alfabético. El mosaico no cambia.
+    /// </summary>
+    public void SetCustomOrder(IReadOnlyList<string>? keys)
+    {
+        _rank = null;
+        if (keys is not null)
+        {
+            _rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < keys.Count; i++)
+                _rank.TryAdd(keys[i], i);
+        }
+        if (!_shuffle)
+            RebuildOrder();
+    }
+
+    /// <summary>Vacía la lista (y olvida el orden propio).</summary>
+    public void Clear()
+    {
+        _songs.Clear();
+        _known.Clear();
+        _order.Clear();
+        _position = -1;
+        _rank = null;
     }
 
     /// <summary>Añade canciones ignorando las repetidas. Devuelve cuántas se han añadido.</summary>
@@ -139,6 +170,10 @@ public sealed class Playlist
     {
         _order = Enumerable.Range(0, _songs.Count).ToList();
         int currentIndex = current is null ? -1 : _songs.IndexOf(current);
+
+        // Orden de la playlist; OrderBy es estable, así que las que no están en ella siguen en orden alfabético.
+        if (!_shuffle && _rank is { } rank)
+            _order = _order.OrderBy(i => rank.TryGetValue(_songs[i], out int at) ? at : int.MaxValue).ToList();
 
         if (_shuffle)
         {

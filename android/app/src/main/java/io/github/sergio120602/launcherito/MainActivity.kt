@@ -29,6 +29,7 @@ import io.github.sergio120602.launcherito.ui.Dialogs
 import io.github.sergio120602.launcherito.ui.LauncheritoTheme
 import io.github.sergio120602.launcherito.ui.LauncheritoViewModel
 import io.github.sergio120602.launcherito.ui.PlayerScreen
+import io.github.sergio120602.launcherito.ui.PlaylistDialogs
 import io.github.sergio120602.launcherito.ui.StartScreen
 import io.github.sergio120602.launcherito.ui.VideoHost
 import io.github.sergio120602.launcherito.ui.VideoSurface
@@ -57,11 +58,11 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
-    /** «Abrir con → Launcherito» con un .mp3, o compartir una lista desde la app de Spotify. */
+    /** «Abrir con → Launcherito» con un .mp3, o compartir una lista desde la app de Spotify o de YouTube Music. */
     private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
             Intent.ACTION_VIEW -> intent.data?.let { vm.addFiles(listOf(it), persist = false) }
-            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.let { vm.openSpotifyDialog(it) }
+            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.let { vm.openSharedText(it) }
         }
     }
 
@@ -82,7 +83,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun LauncheritoScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        // Hueco invisible para el vídeo de las canciones de Spotify fuera de la vista original: se oye
+        // Hueco invisible para el vídeo de las canciones de Spotify y YouTube Music fuera de la vista original: se oye
         // pero no se ve, porque la pantalla (con fondo negro) se dibuja encima. Va fuera del reproductor
         // para que siga sonando también en el menú principal; YouTube pide al menos 200 px de alto.
         val video = vm.songVideo
@@ -93,5 +94,6 @@ private fun LauncheritoScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit)
             if (vm.playerVisible) PlayerScreen(vm, onLoadFiles) else StartScreen(vm, onLoadFiles)
         }
         Dialogs(vm)
+        PlaylistDialogs(vm)
     }
 }

@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
@@ -26,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -51,9 +55,11 @@ fun PlayerControls(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
             ),
             modifier = Modifier.fillMaxWidth().height(32.dp),
         )
+        // Tiempos y, en medio, la posición en la lista (en la fila de los botones ya no cabe).
         Row(Modifier.fillMaxWidth()) {
             Text(formatTime(shown), color = Muted, fontSize = 12.sp)
-            Spacer(Modifier.weight(1f))
+            Text(vm.positionText, color = Muted, fontSize = 12.sp, maxLines = 1,
+                textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
             Text(formatTime(vm.duration), color = Muted, fontSize = 12.sp)
         }
         Row(
@@ -61,6 +67,16 @@ fun PlayerControls(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Corazón: la que suena en Favoritos (rosa si ya lo está).
+            val key = vm.currentKey
+            val favorite = vm.isFavorite(key)
+            IconButton(onClick = { key?.let(vm::toggleFavorite) }, enabled = key != null) {
+                Icon(
+                    if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = if (favorite) "Quitar de Favoritos" else "Añadir a Favoritos",
+                    tint = if (favorite) FavoritePink else Color.White.copy(alpha = if (key != null) 1f else 0.4f),
+                )
+            }
             IconButton(onClick = vm::toggleShuffle) {
                 Icon(
                     Icons.Rounded.Shuffle,
@@ -68,7 +84,6 @@ fun PlayerControls(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
                     tint = if (vm.shuffle) Accent else Muted,
                 )
             }
-            Spacer(Modifier.width(4.dp))
             IconButton(onClick = vm::previous) {
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = "Anterior", modifier = Modifier.size(skip))
             }
@@ -86,10 +101,12 @@ fun PlayerControls(vm: LauncheritoViewModel, modifier: Modifier = Modifier) {
             IconButton(onClick = vm::next) {
                 Icon(Icons.Rounded.SkipNext, contentDescription = "Siguiente", modifier = Modifier.size(skip))
             }
-            Spacer(Modifier.width(4.dp))
-            // Posición en la lista; ancho fijo para que los botones no se muevan al cambiar.
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.CenterStart) {
-                Text(vm.positionText, color = Muted, fontSize = 12.sp, maxLines = 1)
+            // ＋: la que suena a una playlist (o a una nueva).
+            IconButton(onClick = { vm.songMenuKey = key }, enabled = key != null) {
+                Icon(
+                    Icons.AutoMirrored.Rounded.PlaylistAdd, contentDescription = "Añadir a una playlist",
+                    tint = Muted.copy(alpha = if (key != null) 1f else 0.4f),
+                )
             }
         }
     }

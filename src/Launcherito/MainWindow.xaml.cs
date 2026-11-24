@@ -17,7 +17,7 @@ public partial class MainWindow : Window
     private const string PlayIcon = "";
     private const string PauseIcon = "";
     private const int CoverDecodeSize = 640;
-    private const double MinControlsWidth = 330;   // ancho que necesitan los botones sin reducirse
+    private const double MinControlsWidth = 420;   // ancho que necesitan los botones sin reducirse
     // Fondo del botón Editar fuera del modo edición (el mismo que el resto de píldoras).
     private static readonly Brush EditIdle = new SolidColorBrush(Color.FromRgb(0x1C, 0x1C, 0x1C));
 
@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private int _shownSecond;   // segundo que muestra CurrentTimeText, para no reescribirlo sin necesidad
     private readonly Dictionary<string, MosaicTile> _tiles = new(StringComparer.OrdinalIgnoreCase);
     private MosaicTile? _activeTile;
+    private bool _barInMosaic;   // en el mosaico, la portada que suena no se ve: sus controles van en la barra de abajo
     private bool _mosaicView;
     private readonly TileAnimator _animator;
     private readonly MosaicEditor _editor;
@@ -37,7 +38,7 @@ public partial class MainWindow : Window
     // demás (botones, cursor, tiradores, el editor) se pone según esta variable en SetEditing.
     private bool _isEditing;
 
-    private enum Section { Songs, Artists, Genres }
+    private enum Section { Songs, Artists, Genres, Playlists, Trending }
     private Section _section = Section.Songs;
     private readonly MusicCatalog _catalog = new();
     private readonly Dictionary<string, SongMeta> _meta = new(StringComparer.OrdinalIgnoreCase);
@@ -52,15 +53,15 @@ public partial class MainWindow : Window
 
     private readonly Dictionary<string, string> _localSongs = new();   // clave artista|título → .mp3 cargado
     private readonly SongLibrary _library = new();                     // «Tus canciones»: todas las que se han cargado
-    private readonly DispatcherTimer _spotifyStatusClear = new() { Interval = TimeSpan.FromSeconds(12) };
+    private readonly DispatcherTimer _listStatusClear = new() { Interval = TimeSpan.FromSeconds(12) };
 
     // Vídeo de YouTube de la canción que suena, manejado con los controles del programa: a la vista
-    // en la vista original y, para las de Spotify, oculto en las demás. Mientras _audioFromVideo es
+    // en la vista original y, para las de Spotify y YouTube Music, oculto en las demás. Mientras _audioFromVideo es
     // true el sonido sale del vídeo y el .mp3 está cerrado.
     private YouTubeVideo? _songVideo;
     private Decorator? _songVideoHost;   // SongVideoHost (a la vista) o HiddenVideoHost
     private string? _videoFailedFor;     // .mp3 sin vídeo: suena el archivo y no se reintenta
-    private int _skippedInARow;          // canciones de Spotify sin vídeo saltadas seguidas
+    private int _skippedInARow;          // canciones de Spotify o YouTube Music sin vídeo saltadas seguidas
     private bool _songVideoPlaying;      // el vídeo actual ya ha empezado a sonar
     private bool _songVideoStarted;      // ya se ha cargado la página (luego solo se cambian los vídeos)
     private int _songVideoVersion;       // invalida búsquedas de vídeo de una canción que ya no suena
@@ -90,10 +91,10 @@ public partial class MainWindow : Window
         SeekSlider.AddHandler(PreviewMouseLeftButtonDownEvent,
             new MouseButtonEventHandler(SeekSlider_PreviewMouseLeftButtonDown), handledEventsToo: true);
         UpdateShuffleButton();
-        _spotifyStatusClear.Tick += (_, _) =>
+        _listStatusClear.Tick += (_, _) =>
         {
-            _spotifyStatusClear.Stop();
-            SpotifyStatusText.Text = "";
+            _listStatusClear.Stop();
+            ListStatusText.Text = "";
         };
         _categoryRefresh.Tick += (_, _) =>
         {
@@ -102,6 +103,9 @@ public partial class MainWindow : Window
         };
         SetMosaicView(false);
         UpdateLibraryButtons();
+        UpdateFavoriteButton();
+        InitTrending();   // playlists del momento: se leen del disco y se renuevan si toca
+        InitUpdates();    // versión abierta y, sin molestar, si hay una más nueva (MainWindow.Update.cs)
 
         // Permite abrir canciones pasadas como argumento (p. ej. "Abrir con → Launcherito").
         var args = Environment.GetCommandLineArgs();
@@ -121,71 +125,90 @@ public partial class MainWindow : Window
             AddSongs(dialog.FileNames);
     }
 
-    // ───────────────────────────── Listas de Spotify ─────────────────────────────
+    // ─────────────────────── Listas de Spotify y YouTube Music ───────────────────────
 
-    private void SpotifyButton_Click(object sender, RoutedEventArgs e)
+    private void SpotifyButton_Click(object sender, RoutedEventArgs e) => OpenListDialog(OnlineSource.Spotify);
+
+    private void YouTubeMusicButton_Click(object sender, RoutedEventArgs e) => OpenListDialog(OnlineSource.YouTubeMusic);
+
+    /// <summary>
+    /// Abre el panel del enlace con el título y el color del servicio elegido. Se admite el enlace de
+    /// cualquiera de los dos: lo que cuenta es el enlace que se pega.
+    /// </summary>
+    private void OpenListDialog(OnlineSource source)
     {
-        // Si se acaba de copiar un enlace de Spotify, ya aparece pegado.
+        bool spotify = source == OnlineSource.Spotify;
+        ListDialogTitle.Text = $"Añadir lista de {OnlineSongs.Name(source)}";
+        ListDialogHelp.Text = spotify
+            ? "Pega el enlace de una lista pública o de un álbum (Compartir → Copiar enlace). Se cargan hasta 100 " +
+              "canciones con su portada. Las que ya tengas en .mp3 suenan enteras; las demás suenan con su vídeo " +
+              "de YouTube, que se ve en la vista original."
+            : "Pega el enlace de una lista pública o no listada, o de un álbum (Compartir → Copiar enlace). Se " +
+              $"cargan hasta {YouTubeMusicLibrary.MaxTracks} canciones con su portada. Las que ya tengas en .mp3 " +
+              "suenan enteras; las demás suenan con su vídeo, que se ve en la vista original.";
+        ListAddButton.Style = (Style)FindResource(spotify ? "SpotifyButton" : "YouTubeMusicButton");
+
+        // Si se acaba de copiar un enlace de una lista, ya aparece pegado.
         try
         {
-            if (SpotifyLibrary.ParseLink(Clipboard.GetText()) is not null)
-                SpotifyLinkBox.Text = Clipboard.GetText().Trim();
+            if (OnlineSongs.ParseLink(Clipboard.GetText()) is not null)
+                ListLinkBox.Text = Clipboard.GetText().Trim();
         }
         catch (System.Runtime.InteropServices.COMException)
         {
             // Portapapeles ocupado por otro programa: se pega a mano.
         }
-        SpotifyDialogStatus.Text = "";
-        SpotifyOverlay.Visibility = Visibility.Visible;
-        SpotifyLinkBox.Focus();
-        SpotifyLinkBox.SelectAll();
+        ListDialogStatus.Text = "";
+        ListOverlay.Visibility = Visibility.Visible;
+        ListLinkBox.Focus();
+        ListLinkBox.SelectAll();
     }
 
-    private void SpotifyLinkBox_KeyDown(object sender, KeyEventArgs e)
+    private void ListLinkBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
-            _ = AddSpotifyListAsync();
+            _ = AddListAsync();
         else if (e.Key == Key.Escape)
-            SpotifyCancel_Click(sender, e);
+            ListCancel_Click(sender, e);
     }
 
-    private void SpotifyAdd_Click(object sender, RoutedEventArgs e) => _ = AddSpotifyListAsync();
+    private void ListAdd_Click(object sender, RoutedEventArgs e) => _ = AddListAsync();
 
-    private void SpotifyCancel_Click(object sender, RoutedEventArgs e)
+    private void ListCancel_Click(object sender, RoutedEventArgs e)
     {
-        if (SpotifyAddButton.IsEnabled)   // mientras se lee la lista no se cierra
-            SpotifyOverlay.Visibility = Visibility.Collapsed;
+        if (ListAddButton.IsEnabled)   // mientras se lee la lista no se cierra
+            ListOverlay.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>
-    /// Lee la lista de Spotify y añade sus canciones al mosaico. Las que ya están en un .mp3 cargado no
-    /// se repiten (suena el .mp3 entero); las demás son accesos directos a su vídeo de YouTube.
+    /// Lee la lista de Spotify o YouTube Music y añade sus canciones al mosaico. Las que ya están en un
+    /// .mp3 cargado no se repiten (suena el .mp3 entero); las demás suenan con su vídeo de YouTube.
     /// </summary>
-    private async Task AddSpotifyListAsync()
+    private async Task AddListAsync()
     {
-        if (!SpotifyAddButton.IsEnabled)
+        if (!ListAddButton.IsEnabled)
             return;
-        if (SpotifyLibrary.ParseLink(SpotifyLinkBox.Text) is not { } link)
+        if (OnlineSongs.ParseLink(ListLinkBox.Text) is not { } link)
         {
-            SpotifyDialogStatus.Text = "Ese enlace no es de una lista ni de un álbum de Spotify.";
+            ListDialogStatus.Text = "Ese enlace no es de una lista ni de un álbum de Spotify o YouTube Music.";
             return;
         }
 
-        SpotifyList list;
-        SpotifyAddButton.IsEnabled = false;
-        SpotifyDialogStatus.Text = "Leyendo la lista en Spotify…";
+        OnlineList list;
+        ListAddButton.IsEnabled = false;
+        ListDialogStatus.Text = $"Leyendo la lista en {OnlineSongs.Name(link.Source)}…";
         try
         {
-            list = await SpotifyLibrary.LoadAsync(link.Type, link.Id);
+            list = await OnlineSongs.LoadAsync(link);
         }
-        catch (SpotifyImportException ex)
+        catch (ListImportException ex)
         {
-            SpotifyDialogStatus.Text = ex.Message;
+            ListDialogStatus.Text = ex.Message;
             return;
         }
         finally
         {
-            SpotifyAddButton.IsEnabled = true;
+            ListAddButton.IsEnabled = true;
         }
 
         var keys = new List<string>();
@@ -193,7 +216,7 @@ public partial class MainWindow : Window
         int owned = 0;
         foreach (var track in list.Tracks)
         {
-            if (_localSongs.ContainsKey(SpotifyLibrary.MatchKey(track.Artists, track.Title)))
+            if (_localSongs.ContainsKey(OnlineSongs.MatchKey(track.Artists, track.Title)))
                 owned++;
             else
             {
@@ -214,54 +237,64 @@ public partial class MainWindow : Window
         // Si no se ha añadido nada el panel sigue abierto con la explicación; si no, se cierra.
         if (added == 0)
         {
-            SpotifyDialogStatus.Text = text;
+            ListDialogStatus.Text = text;
             return;
         }
-        SpotifyOverlay.Visibility = Visibility.Collapsed;
-        SpotifyLinkBox.Text = "";
+        ListOverlay.Visibility = Visibility.Collapsed;
+        ListLinkBox.Text = "";
         // En la barra superior cabe poco: el resumen corto y el detalle al pasar el ratón.
-        SpotifyStatusText.Text = $"Spotify: +{Songs(added)}";
-        SpotifyStatusText.ToolTip = text;
-        _spotifyStatusClear.Stop();
-        _spotifyStatusClear.Start();
+        ShowListStatus($"{OnlineSongs.Name(list.Source)}: +{Songs(added)}", list.Source);
+        ListStatusText.ToolTip = text;
     }
 
     private static string Songs(int count) => count == 1 ? "1 canción" : $"{count} canciones";
 
     /// <summary>
-    /// Quita las canciones de Spotify que ya están en un .mp3 cargado: suena el archivo, que está
-    /// entero. La que está sonando se deja hasta que se cambie de canción.
+    /// Quita las canciones de Spotify o YouTube Music que ya están en un .mp3 cargado: suena el
+    /// archivo, que está entero. La que está sonando se deja hasta que se cambie de canción.
     /// </summary>
-    private void RemoveSpotifyDuplicates()
+    private void RemoveOnlineDuplicates()
     {
         string? current = _playlist.Current;
         var duplicates = _playlist.Songs
-            .Where(key => key != current && SpotifyLibrary.TryGet(key, out var track) &&
-                          _localSongs.ContainsKey(SpotifyLibrary.MatchKey(track.Artists, track.Title)))
+            .Where(key => key != current && OnlineSongs.TryGet(key, out var track) &&
+                          _localSongs.ContainsKey(OnlineSongs.MatchKey(track.Artists, track.Title)))
             .ToList();
         if (_playlist.Remove(duplicates) == 0)
             return;
         foreach (var key in duplicates)
+        {
+            // En Favoritos y en las playlists pasa a estar el .mp3, en el mismo sitio.
+            if (OnlineSongs.TryGet(key, out var track) &&
+                _localSongs.TryGetValue(OnlineSongs.MatchKey(track.Artists, track.Title), out var mp3))
+                _userLists.Replace(key, mp3);
             _meta.Remove(key);
+        }
         _library.Remove(duplicates);   // tampoco hace falta guardarla: ya está guardado el .mp3
         SyncMosaic();
         UpdatePosition();
         ScheduleCategoryRefresh();
     }
 
-    /// <summary>Pulsar una canción: suena (las de Spotify, con su vídeo de YouTube).</summary>
+    /// <summary>Pulsar una canción: suena (las de Spotify y YouTube Music, con su vídeo de YouTube).</summary>
     private void SelectSong(string path)
     {
         if (_playlist.JumpTo(path) is { } song)
             PlaySong(song);
     }
 
-    private void ShowSpotifyStatus(string text)
+    /// <summary>
+    /// Aviso en la barra superior durante unos segundos: en rojo si es de YouTube Music, en verde si
+    /// no (Spotify y los del vídeo de los .mp3).
+    /// </summary>
+    private void ShowListStatus(string text, OnlineSource? source = null)
     {
-        SpotifyStatusText.Text = text;
-        SpotifyStatusText.ToolTip = null;
-        _spotifyStatusClear.Stop();
-        _spotifyStatusClear.Start();
+        ListStatusText.Text = text;
+        ListStatusText.ToolTip = null;
+        ListStatusText.Foreground = (Brush)FindResource(
+            source == OnlineSource.YouTubeMusic ? "YouTubeMusicRed" : "SpotifyGreen");
+        _listStatusClear.Stop();
+        _listStatusClear.Start();
     }
 
     private void AddSongs(IEnumerable<string> paths)
@@ -310,11 +343,12 @@ public partial class MainWindow : Window
         // En el menú principal, si hay algo cargado, se puede volver al reproductor.
         BackToPlayerButton.Visibility = _playlist.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         BackToPlayerText.Text = _isPlaying ? $"Volver al reproductor  ·  {TitleText.Text}" : "Volver al reproductor";
+        UpdateStartPlaylistsButton();
     }
 
     /// <summary>Guardadas que no están en el mosaico y se pueden cargar (los .mp3, solo si siguen en su sitio).</summary>
     private List<SavedSong> UnloadedSongs() =>
-        _library.Songs.Where(song => !_tiles.ContainsKey(song.Key) && (song.IsSpotify || File.Exists(song.Key))).ToList();
+        _library.Songs.Where(song => !_tiles.ContainsKey(song.Key) && (song.IsOnline || File.Exists(song.Key))).ToList();
 
     /// <summary>Carga todas las canciones guardadas que aún no están en el mosaico.</summary>
     private void LibraryButton_Click(object sender, RoutedEventArgs e)
@@ -322,15 +356,15 @@ public partial class MainWindow : Window
         var songs = new List<string>();
         foreach (var song in UnloadedSongs())
         {
-            if (song.IsSpotify)
-                SpotifyLibrary.Register(song.ToTrack());
+            if (song.IsOnline)
+                OnlineSongs.Register(song.ToTrack());
             songs.Add(song.Key);
         }
         if (songs.Count > 0)
             AddToPlaylist(songs);
         ShowPlayer();   // aunque ya estuvieran todas cargadas
 
-        int missing = _library.Songs.Count(song => !song.IsSpotify && !File.Exists(song.Key));
+        int missing = _library.Songs.Count(song => !song.IsOnline && !File.Exists(song.Key));
         if (missing > 0)
         {
             MessageBox.Show(this,
@@ -343,37 +377,15 @@ public partial class MainWindow : Window
     private void DeleteSongsButton_Click(object sender, RoutedEventArgs e)
     {
         DeleteList.Children.Clear();
-        var muted = (Brush)FindResource("Muted");
         foreach (var song in _library.Songs)
         {
-            bool missing = !song.IsSpotify && !File.Exists(song.Key);
-            var row = new Grid();
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var title = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis };
-            title.Inlines.Add(song.Title);
-            if (song.Artist.Length > 0)
-                title.Inlines.Add(new System.Windows.Documents.Run("  ·  " + song.Artist) { Foreground = muted });
-            // Marca a la derecha: de dónde viene, o que el archivo ya no está.
-            var tag = new TextBlock
-            {
-                Text = missing ? "no se encuentra" : song.IsSpotify ? "Spotify" : ".mp3",
-                FontSize = 12,
-                Margin = new Thickness(12, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = missing ? (Brush)FindResource("DangerRed")
-                    : song.IsSpotify ? (Brush)FindResource("SpotifyGreen") : muted,
-            };
-            Grid.SetColumn(tag, 1);
-            row.Children.Add(title);
-            row.Children.Add(tag);
-
+            bool missing = !song.IsOnline && !File.Exists(song.Key);
             var check = new CheckBox
             {
                 Style = (Style)FindResource("SongCheck"),
-                Content = row,
+                Content = CreateSavedSongContent(song, missing),
                 Tag = song.Key,
-                ToolTip = song.IsSpotify ? null : song.Key,   // la ruta del .mp3
+                ToolTip = song.IsOnline ? null : song.Key,   // la ruta del .mp3
             };
             check.Checked += DeleteCheck_Changed;
             check.Unchecked += DeleteCheck_Changed;
@@ -382,6 +394,41 @@ public partial class MainWindow : Window
         UpdateDeleteButtons();
         DeleteOverlay.Visibility = Visibility.Visible;
         DeleteOverlay.Focus();
+    }
+
+    /// <summary>
+    /// Contenido de una fila con casilla (Borrar canciones, Añadir canciones a una playlist): título,
+    /// artista y a la derecha de dónde viene, o que el archivo ya no está.
+    /// </summary>
+    private Grid CreateSavedSongContent(SavedSong song, bool missing)
+    {
+        var muted = (Brush)FindResource("Muted");
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var title = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis };
+        title.Inlines.Add(song.Title);
+        if (song.Artist.Length > 0)
+            title.Inlines.Add(new System.Windows.Documents.Run("  ·  " + song.Artist) { Foreground = muted });
+        // Marca a la derecha: de dónde viene, o que el archivo ya no está.
+        var tag = new TextBlock
+        {
+            Text = missing ? "no se encuentra" : song.Source is { } source ? OnlineSongs.Name(source) : ".mp3",
+            FontSize = 12,
+            Margin = new Thickness(12, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = missing ? (Brush)FindResource("DangerRed")
+                : song.Source switch
+                {
+                    OnlineSource.Spotify => (Brush)FindResource("SpotifyGreen"),
+                    OnlineSource.YouTubeMusic => (Brush)FindResource("YouTubeMusicRed"),
+                    _ => muted,
+                },
+        };
+        Grid.SetColumn(tag, 1);
+        row.Children.Add(title);
+        row.Children.Add(tag);
+        return row;
     }
 
     private IEnumerable<CheckBox> DeleteChecks => DeleteList.Children.OfType<CheckBox>();
@@ -431,9 +478,13 @@ public partial class MainWindow : Window
             return;
 
         _library.Remove(keys);
+        _userLists.Forget(keys);   // tampoco siguen en Favoritos ni en las playlists
         CloseDeletePanel();
         RemoveFromSession(keys);
         UpdateLibraryButtons();
+        UpdateFavoriteButton();
+        if (_section == Section.Playlists)
+            RefreshCategories();
     }
 
     /// <summary>
@@ -477,9 +528,16 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Añade canciones (.mp3 o de Spotify) a la lista y al mosaico. Devuelve cuántas son nuevas.</summary>
-    private int AddToPlaylist(IReadOnlyList<string> songs)
+    /// <summary>
+    /// Añade canciones (.mp3, de Spotify o de YouTube Music) a la lista y al mosaico. Devuelve cuántas son nuevas.
+    /// Si la lista estaba vacía empieza a sonar <paramref name="startWith"/> (o la primera).
+    /// </summary>
+    private int AddToPlaylist(IReadOnlyList<string> songs, string? startWith = null)
     {
+        // Al añadir otras canciones mientras suena una playlist, deja de ser solo esa playlist.
+        if (!_loadingSession && (_sessionListId is not null || _sessionTrendingId is not null))
+            LeaveSessionList();
+
         int before = _playlist.Count;
         bool wasEmpty = _playlist.Count == 0;
         int added = _playlist.Add(songs);
@@ -491,7 +549,7 @@ public partial class MainWindow : Window
             SetMosaicView(true);
 
         // Si ya estaba sonando algo, las nuevas canciones se añaden a la lista sin interrumpirla.
-        if (wasEmpty && _playlist.Current is { } first)
+        if (wasEmpty && (startWith is null ? _playlist.Current : _playlist.JumpTo(startWith)) is { } first)
             PlaySong(first);
         else
             UpdatePosition();
@@ -515,7 +573,7 @@ public partial class MainWindow : Window
         StartPanel.Visibility = Visibility.Collapsed;
         PlayerPanel.Visibility = Visibility.Visible;
 
-        // Suena el vídeo de YouTube en la vista original y siempre en las de Spotify; si no, el .mp3.
+        // Suena el vídeo de YouTube en la vista original y siempre en las de Spotify y YouTube Music; si no, el .mp3.
         _videoFailedFor = null;
         if (WantedVideoHost(path) is { } host)
             StartSongVideo(path, 0, host);
@@ -550,13 +608,16 @@ public partial class MainWindow : Window
         ShuffleButton.Foreground = _playlist.Shuffle
             ? (Brush)FindResource("Accent")
             : (Brush)FindResource("Muted");
-        ShuffleButton.ToolTip = _playlist.Shuffle
-            ? "Aleatorio: activado"
+        ShuffleButton.ToolTip = _playlist.Shuffle ? "Aleatorio: activado"
+            : _playlist.HasCustomOrder ? "Aleatorio: desactivado (orden de la playlist)"
             : "Aleatorio: desactivado (orden alfabético)";
     }
 
-    private void UpdatePosition() =>
+    private void UpdatePosition()
+    {
         PositionText.Text = _playlist.Count == 0 ? "" : $"{_playlist.Position + 1} / {_playlist.Count}";
+        UpdateFavoriteButton();   // el corazón es de la canción que suena
+    }
 
     /// <summary>
     /// Pone al momento el título y el artista que ya se conocen y luego lee las etiquetas fuera del
@@ -600,17 +661,17 @@ public partial class MainWindow : Window
 
     // ─────────────────────── Vídeo de YouTube de la canción que suena ───────────────────────
     // En la vista original se ve el vídeo de la canción que suena en lugar de la carátula, y el
-    // sonido sale de él. Las canciones de Spotify no tienen .mp3: suenan siempre de su vídeo, y fuera
+    // sonido sale de él. Las de Spotify y YouTube Music no tienen .mp3: suenan siempre de su vídeo, y fuera
     // de la vista original el vídeo va en un hueco invisible (HiddenVideoHost) y solo se oye.
 
     private enum VideoProblem { Offline, NotEmbeddable, NoWebView }
 
     /// <summary>
     /// Dónde va el vídeo de la canción: a la vista en la vista original; en el hueco invisible si es
-    /// de Spotify; en ningún sitio si es un .mp3 fuera de la vista original (suena el archivo).
+    /// de Spotify o YouTube Music; en ningún sitio si es un .mp3 fuera de la vista original (suena el archivo).
     /// </summary>
     private Decorator? WantedVideoHost(string path) =>
-        SingleViewVisible ? SongVideoHost : SpotifyLibrary.IsSpotify(path) ? HiddenVideoHost : null;
+        SingleViewVisible ? SongVideoHost : OnlineSongs.IsOnline(path) ? HiddenVideoHost : null;
 
     /// <summary>
     /// Pone el vídeo de YouTube de la canción en <paramref name="host"/>, empezando en el segundo
@@ -675,7 +736,7 @@ public partial class MainWindow : Window
 
     private async Task LoadSongVideoAsync(string path, double start, int version)
     {
-        var (title, artist) = SpotifyLibrary.TryGet(path, out var track) ? (track.Title, track.MainArtist)
+        var (title, artist) = OnlineSongs.TryGet(path, out var track) ? (track.Title, track.MainArtist)
             : _meta.TryGetValue(path, out var meta) ? (meta.Title, meta.Artist)
             : await Task.Run(() => SongInfo.Read(path, 0) is var info ? (info.Title, info.Artist) : default);
         var ids = await YouTubeLinks.FindVideosAsync(path, artist, title);
@@ -712,13 +773,13 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// La canción no tiene vídeo que se pueda ver. Si es un .mp3, suena el archivo. Si es de Spotify
-    /// no hay nada más que poner: sin conexión se para; si es solo esa, se pasa a la siguiente.
+    /// o YouTube Music no hay nada más que poner: sin conexión se para; si es solo esa, se pasa a la siguiente.
     /// </summary>
     private void VideoFailed(VideoProblem problem)
     {
         if (_playlist.Current is not { } path)
             return;
-        if (!SpotifyLibrary.IsSpotify(path))
+        if (OnlineSongs.SourceOf(path) is not { } source)
         {
             _videoFailedFor = path;   // no se vuelve a intentar al cambiar de vista
             SwitchToMp3(problem switch
@@ -736,22 +797,23 @@ public partial class MainWindow : Window
         string title = SongInfo.FallbackTitle(path);
         if (problem != VideoProblem.NotEmbeddable)
         {
-            ShowSpotifyStatus(problem == VideoProblem.Offline
-                ? "Sin conexión con YouTube: las canciones de Spotify no pueden sonar"
-                : "Este Windows no puede mostrar vídeos: las canciones de Spotify no pueden sonar");
+            string name = OnlineSongs.Name(source);
+            ShowListStatus(problem == VideoProblem.Offline
+                ? $"Sin conexión con YouTube: las canciones de {name} no pueden sonar"
+                : $"Este Windows no puede mostrar vídeos: las canciones de {name} no pueden sonar", source);
             Pause();
             return;
         }
         // Se salta, pero sin dar vueltas a la lista si ninguna tiene vídeo.
         if (++_skippedInARow < _playlist.Count && _playlist.Next() is { } next)
         {
-            ShowSpotifyStatus($"«{title}» no tiene vídeo que se pueda ver aquí: pasa a la siguiente");
+            ShowListStatus($"«{title}» no tiene vídeo que se pueda ver aquí: pasa a la siguiente", source);
             PlaySong(next);
         }
         else
         {
             _skippedInARow = 0;
-            ShowSpotifyStatus($"«{title}» no tiene vídeo que se pueda ver aquí");
+            ShowListStatus($"«{title}» no tiene vídeo que se pueda ver aquí", source);
             Pause();
         }
     }
@@ -819,7 +881,7 @@ public partial class MainWindow : Window
         if (!_audioFromVideo || _playlist.Current is not { } path)
             return;
         if (reason is not null)
-            ShowSpotifyStatus(reason);
+            ShowListStatus(reason);
         _songVideoVersion++;
         _audioFromVideo = false;
         _songVideo?.Pause();
@@ -931,9 +993,12 @@ public partial class MainWindow : Window
     {
         if (e.Key == Key.Enter)
         {
-            // Enter elige la primera.
-            if (SearchResults.Children.OfType<Button>().FirstOrDefault() is { Tag: string key })
+            // Enter elige la primera (si no hay ninguna canción, la de buscar en YouTube).
+            var first = SearchResults.Children.OfType<Button>().FirstOrDefault();
+            if (first is { Tag: string key })
                 PickSearchResult(key);
+            else
+                first?.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             e.Handled = true;
         }
         else if (e.Key == Key.Escape)
@@ -971,7 +1036,7 @@ public partial class MainWindow : Window
             .OrderBy(match => match.At == 0 ? 0 : match.At > 0 ? 1 : 2)
             .ThenBy(match => match.Title, StringComparer.CurrentCultureIgnoreCase)
             // Un .mp3 guardado que ya no está en el PC no se puede poner.
-            .Where(match => _tiles.ContainsKey(match.Key) || SpotifyLibrary.IsSpotify(match.Key) || File.Exists(match.Key))
+            .Where(match => _tiles.ContainsKey(match.Key) || OnlineSongs.IsOnline(match.Key) || File.Exists(match.Key))
             .Take(MaxSearchResults)
             .ToList();
 
@@ -988,11 +1053,13 @@ public partial class MainWindow : Window
         foreach (var match in matches)
         {
             var row = CreateSongRow(match.Key, match.Title, match.Artist,
-                match.At >= 0 ? (match.At, match.Length) : null);
+                match.At >= 0 ? (match.At, match.Length) : null, withMenu: false);
             row.Click -= SongRow_Click;
             row.Click += (_, _) => PickSearchResult(match.Key);
             SearchResults.Children.Add(row);
         }
+        // Al final, buscarlo en YouTube (si no hay ninguna aquí, Enter elige esta).
+        SearchResults.Children.Add(CreateYouTubeSearchRow(query));
         SearchPopup.IsOpen = true;
     }
 
@@ -1007,7 +1074,7 @@ public partial class MainWindow : Window
             seen.Add(key);
             if (_meta.TryGetValue(key, out var meta))
                 yield return (key, meta.Title, meta.Artist);
-            else if (SpotifyLibrary.TryGet(key, out var track))
+            else if (OnlineSongs.TryGet(key, out var track))
                 yield return (key, track.Title, track.Artists);
             else
                 yield return (key, SongInfo.FallbackTitle(key), "");
@@ -1026,8 +1093,8 @@ public partial class MainWindow : Window
         Keyboard.ClearFocus();
         if (!_tiles.ContainsKey(key))
         {
-            if (SpotifyLibrary.IsSpotify(key) && _library.Songs.FirstOrDefault(song => song.Key == key) is { } saved)
-                SpotifyLibrary.Register(saved.ToTrack());
+            if (OnlineSongs.IsOnline(key) && _library.Songs.FirstOrDefault(song => song.Key == key) is { } saved)
+                OnlineSongs.Register(saved.ToTrack());
             AddToPlaylist([key]);
             if (_playlist.Current == key && _isPlaying)
                 return;   // era la primera de la lista y ya ha empezado a sonar
@@ -1052,6 +1119,8 @@ public partial class MainWindow : Window
 
     private void SetSection(Section section)
     {
+        if (section != Section.Playlists)
+            ClearListMosaic();   // las portadas de la playlist abierta solo se ven en su pestaña
         _section = section;
         _openCategory = null;
         // Las fotos de las tarjetas que dejan de verse se sueltan; se recargan al volver a su pestaña.
@@ -1079,7 +1148,7 @@ public partial class MainWindow : Window
         bool newLocal = false;
         foreach (var (path, info) in tags)
         {
-            if (SpotifyLibrary.TryGet(path, out var track))
+            if (OnlineSongs.TryGet(path, out var track))
             {
                 // Sin la marca de YouTube y solo el primer artista, para agrupar y buscar en Deezer.
                 _meta[path] = new SongMeta { Title = track.Title, Artist = track.MainArtist };
@@ -1087,7 +1156,7 @@ public partial class MainWindow : Window
             else
             {
                 _meta[path] = new SongMeta { Title = info.Title, Artist = info.Artist };
-                _localSongs[SpotifyLibrary.MatchKey(info.Artist, info.Title)] = path;
+                _localSongs[OnlineSongs.MatchKey(info.Artist, info.Title)] = path;
                 _library.Describe(path, info.Title, info.Artist);
                 newLocal = true;
             }
@@ -1095,7 +1164,7 @@ public partial class MainWindow : Window
         }
         _library.Save();
         if (newLocal)
-            RemoveSpotifyDuplicates();
+            RemoveOnlineDuplicates();
         ScheduleCategoryRefresh();
 
         if (_classifying)
@@ -1143,6 +1212,19 @@ public partial class MainWindow : Window
     {
         if (_section == Section.Songs)
             return;
+        if (_section == Section.Trending)
+        {
+            RefreshTrending();
+            return;
+        }
+        HideTrendingUi();
+        if (_section == Section.Playlists)
+        {
+            RefreshPlaylists();
+            return;
+        }
+        ClearListMosaic();
+        PlaylistActions.Visibility = Visibility.Collapsed;
         if (_openCategory is not null)
         {
             ShowCategoryDetail(_openCategory);
@@ -1239,9 +1321,11 @@ public partial class MainWindow : Window
     /// <summary>
     /// Fila de una canción (detalle de artista o género, y resultados del buscador): icono, título y
     /// un dato a la derecha. La que suena sale resaltada. Si se indica, una parte del título va en
-    /// morado (lo que coincide con la búsqueda). Al pulsarla, suena o se ve su vídeo.
+    /// morado (lo que coincide con la búsqueda). Al pulsarla, suena o se ve su vídeo. Con clic derecho
+    /// (si <paramref name="withMenu"/>) se pone en Favoritos o en una playlist.
     /// </summary>
-    private Button CreateSongRow(string path, string titleText, string detailText, (int Start, int Length)? highlight = null)
+    private Button CreateSongRow(string path, string titleText, string detailText,
+                                 (int Start, int Length)? highlight = null, bool withMenu = true)
     {
         var accent = (Brush)FindResource("Accent");
         var muted = (Brush)FindResource("Muted");
@@ -1251,7 +1335,7 @@ public partial class MainWindow : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        bool youTube = SpotifyLibrary.IsSpotify(path);
+        bool youTube = OnlineSongs.IsOnline(path);
         var icon = new TextBlock
         {
             Text = playing ? "" : youTube ? "" : "",   // altavoz / vídeo / reproducir
@@ -1298,6 +1382,8 @@ public partial class MainWindow : Window
             ToolTip = youTube ? "Ver su vídeo de YouTube" : null,
         };
         button.Click += SongRow_Click;
+        if (withMenu)
+            AttachSongMenu(button, path);
         return button;
     }
 
@@ -1365,8 +1451,10 @@ public partial class MainWindow : Window
         SongsTab.Tag = songs ? "Active" : null;
         ArtistsTab.Tag = _section == Section.Artists ? "Active" : null;
         GenresTab.Tag = _section == Section.Genres ? "Active" : null;
+        PlaylistsTab.Tag = _section == Section.Playlists ? "Active" : null;
+        TrendingTab.Tag = _section == Section.Trending ? "Active" : null;
 
-        MoveControls();
+        UpdatePlayerBar();
         if (MosaicVisible)
         {
             ScrollToActiveTile();
@@ -1379,7 +1467,7 @@ public partial class MainWindow : Window
         }
 
         // En la vista original suena el vídeo de la canción; fuera de ella, el .mp3 por donde iba
-        // (las de Spotify, su vídeo oculto).
+        // (las de Spotify y YouTube Music, su vídeo oculto).
         UpdateSongSource();
 
         // La carátula grande (640 px, ~1,6 MB) solo ocupa memoria mientras se ve la vista original.
@@ -1391,7 +1479,7 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Crea o quita teselas para que el mosaico coincida con la lista de reproducción y los accesos
-    /// directos de Spotify: en orden alfabético o en el que haya elegido el usuario arrastrándolas.
+    /// directos de Spotify y YouTube Music: en orden alfabético o en el que haya elegido el usuario arrastrándolas.
     /// </summary>
     private void SyncMosaic()
     {
@@ -1411,7 +1499,7 @@ public partial class MainWindow : Window
                 removed.SetActive(false);
                 removed.SizeChanged -= ActiveTile_SizeChanged;
                 _activeTile = null;
-                MoveControls();
+                UpdatePlayerBar();
             }
         }
 
@@ -1423,6 +1511,7 @@ public partial class MainWindow : Window
                 tile = new MosaicTile(songs[i]);
                 tile.Selected += Tile_Selected;
                 tile.IsEditable = _isEditing;
+                AttachSongMenu(tile, songs[i]);   // clic derecho: Favoritos y playlists
                 _tiles.Add(songs[i], tile);
                 added.Add(tile);
             }
@@ -1473,18 +1562,62 @@ public partial class MainWindow : Window
             MosaicPanel.SetSpan(tile, tile.EffectiveSpan);
         }
 
-        MoveControls();
+        UpdatePlayerBar();
         if (MosaicVisible)
             ScrollToActiveTile();
     }
 
     /// <summary>
-    /// Coloca el único juego de controles (barra, tiempos y botones) en la vista original
-    /// o dentro de la portada activa del mosaico.
+    /// Muestra u oculta la barra de reproducción de abajo. En Artistas, Géneros y Playlists está
+    /// siempre. En el mosaico solo aparece cuando la portada que suena se ha perdido de vista al
+    /// desplazarse, para poder pausar o cambiar de canción sin ir a buscarla; los controles pasan
+    /// de la portada a la barra y vuelven a ella en cuanto se ve otra vez.
+    /// </summary>
+    private void UpdatePlayerBar()
+    {
+        _barInMosaic = MosaicVisible && _activeTile is not null && !ActiveTileControlsInView();
+        bool show = _section != Section.Songs || _barInMosaic;
+        PlayerBar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        GoToSongButton.Visibility = _barInMosaic ? Visibility.Visible : Visibility.Collapsed;
+        BarSongInfo.Cursor = _barInMosaic ? Cursors.Hand : null;
+        BarSongInfo.ToolTip = _barInMosaic ? "Ir a la portada de la canción que suena" : null;
+        MoveControls();
+    }
+
+    /// <summary>
+    /// Si en el mosaico se ven los controles de la portada que suena: la franja de abajo de la
+    /// portada, donde van, está dentro de lo que se ve.
+    /// </summary>
+    private bool ActiveTileControlsInView()
+    {
+        if (_activeTile is null)
+            return false;
+        var slot = LayoutInformation.GetLayoutSlot(_activeTile);
+        if (slot.IsEmpty || slot.Height <= 0)
+            return true;   // aún sin colocar: no se saca la barra por un instante
+        double bottom = slot.Bottom + Mosaic.Margin.Top;
+        double band = Math.Min(slot.Height / 2, 150);   // alto aproximado de los controles
+        double controls = bottom - band / 2;            // su línea central
+        return controls >= MosaicView.VerticalOffset &&
+               controls <= MosaicView.VerticalOffset + MosaicView.ViewportHeight;
+    }
+
+    /// <summary>Desde la barra de abajo: vuelve a la portada de la canción que suena.</summary>
+    private void GoToSongButton_Click(object sender, RoutedEventArgs e) => ScrollToActiveTile();
+
+    private void BarSongInfo_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_barInMosaic)
+            ScrollToActiveTile();
+    }
+
+    /// <summary>
+    /// Coloca el único juego de controles (barra, tiempos y botones) en la vista original, dentro
+    /// de la portada activa del mosaico o en la barra de abajo.
     /// </summary>
     private void MoveControls()
     {
-        Decorator target = _section != Section.Songs ? BarControlsHost
+        Decorator target = _section != Section.Songs || _barInMosaic ? BarControlsHost
             : MosaicVisible && _activeTile?.ControlsHost is { } host ? host
             : OriginalControlsHost;
         if (ControlsPanel.Parent == target)
@@ -1514,10 +1647,16 @@ public partial class MainWindow : Window
         {
             _activeTile?.BringIntoView();
             UpdateVisibleCovers();
+            UpdatePlayerBar();
         }, DispatcherPriority.Loaded);
     }
 
-    private void MosaicView_ScrollChanged(object sender, ScrollChangedEventArgs e) => UpdateVisibleCovers();
+    private void MosaicView_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        UpdateVisibleCovers();
+        // También cuando cambia el alto de lo que se ve (al salir la barra) o del mosaico (canciones nuevas).
+        UpdatePlayerBar();
+    }
 
     /// <summary>Carga las portadas visibles (y una pantalla por encima y por debajo) y suelta el resto.</summary>
     private void UpdateVisibleCovers()
@@ -1758,8 +1897,10 @@ public partial class MainWindow : Window
         _player.MediaFailed -= Player_MediaFailed;
         _player.Close();
         _categoryRefresh.Stop();
-        _spotifyStatusClear.Stop();
+        _listStatusClear.Stop();
         _animator.Stop();
+        _listAnimator?.Stop();
+        _trendingTimer.Stop();
         DisposeSongVideo();
         _catalog.Save();
         _library.Save();

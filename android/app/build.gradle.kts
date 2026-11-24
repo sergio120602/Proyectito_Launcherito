@@ -58,6 +58,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
+    // Actualización diaria de las playlists del momento a las 7:00, aunque la app esté cerrada.
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
+
     // Reproductor de los .mp3, con notificación y controles en la pantalla de bloqueo.
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-session:1.11.1")

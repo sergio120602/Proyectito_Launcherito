@@ -6,6 +6,79 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Sin publicar]
 
+### Añadido
+- **Del momento** (Windows y Android): pestaña con las playlists más escuchadas de Spotify (Top 50 España y Global, Éxitos España, Today's Top Hits, Viva Latino, Baila Reggaeton, Pop Rising y RapCaviar), con su portada. También hay un botón «Del momento» en la pantalla inicial.
+  - **Se renuevan cada día a las 7:00** con la tarea programada de Windows «Launcherito - Playlists del momento», que abre `Launcherito.exe --actualizar-del-momento` sin ventana. Si el PC estaba apagado, la tarea se hace al encenderlo, y la aplicación también las renueva si al abrirla (o mientras está abierta) ya ha pasado la hora. «Actualizar ahora» las renueva al momento.
+  - Al abrir una se ven sus canciones por puesto. Al pulsar una, o con *Reproducir*, suena la playlist: los datos son de Spotify y la música es el **vídeo de YouTube** de cada canción, que se ve en la vista original como el de las demás. Las que ya tienes en `.mp3` suenan enteras.
+  - *Guardar en mis playlists* la copia tal como está ese día a «Tus playlists». *Ver en Spotify* la abre en Spotify.
+  - No llenan «Tus canciones» (cambian cada día), pero una canción que se pone en Favoritos o en una playlist se guarda allí para que no se pierda.
+- **Buscar canciones en YouTube y quedártelas** (Windows y Android). Barra «Buscar canciones en YouTube…» en la pantalla inicial, «＋ Desde YouTube» arriba y, en el buscador de canciones, una última fila «Buscar «…» en YouTube» (si no hay ninguna canción tuya que coincida, Enter la elige).
+  - Panel con pestañas **Canciones** (de álbumes, con su portada) y **Vídeos** (videoclips, directos, versiones…), hasta 20 resultados con imagen, artista y duración.
+  - **Añadir** la guarda en «Tus canciones» y la pone en el mosaico; **▶** además la pone a sonar. Suenan con su vídeo, como las de YouTube Music, y se pueden meter en Favoritos y en playlists como cualquier otra.
+  - También se puede pegar el **enlace de un vídeo** (`youtube.com/watch?v=…`, `youtu.be/…`, `music.youtube.com/watch?v=…`, Shorts). Si se pega el de una lista o un álbum, se abre el cuadro de listas de siempre.
+  - Las que ya tienes en `.mp3` no se repiten: el botón dice «Ya la tienes en .mp3» y ▶ pone el archivo.
+- **Favoritos y playlists propias** (Windows y Android). Se guardan solas en `%LOCALAPPDATA%\Launcherito\playlists.json`.
+  - **Favoritos**: corazón junto a los controles (a la izquierda del aleatorio) para marcar la canción que suena; se pone rosa si ya es favorita. Favoritos es una lista fija: no se puede renombrar ni borrar.
+  - **Pestaña Playlists** (y botón «Tus playlists» en la pantalla inicial, aunque no haya nada cargado): una tarjeta para Favoritos, otra por cada playlist y «Nueva playlist». Al abrir una se ven sus canciones y los botones *Reproducir*, *Añadir canciones*, *Renombrar* y *Borrar playlist*. La X de cada canción la quita de la playlist.
+  - **Vista mosaico o vista lista** en cada playlist (botón «Vista lista» / «Vista mosaico»; cada playlist recuerda la suya y empieza en mosaico). El mosaico es como el de siempre: portadas de los álbumes de distintos tamaños; al pulsar una suena la playlist desde ella. Con **Editar** (en verde «Dejar edición» mientras dura) las portadas se mueven y se agrandan o encogen con el tirador. **Moverlas cambia el orden de la playlist** (el que se sigue sin aleatorio, también si está sonando) y el tamaño de cada portada se guarda en esa playlist.
+  - **Añadir canciones**: panel con casillas entre las de «Tus canciones» (`.mp3`, Spotify y YouTube Music), cada una con la **carátula de su álbum**, y filtro por canción o artista sin importar mayúsculas ni tildes. Se abre solo al crear una playlist nueva. Las carátulas se cargan en segundo plano, primero las que se ven.
+  - **Clic derecho** en una portada del mosaico o en una canción de Artistas, Géneros o una playlist, y el botón **＋** de los controles: menú con «Añadir a Favoritos» / «Quitar de Favoritos», cada playlist (marcada si ya la tiene; al pulsarla se pone o se quita) y «Nueva playlist…», que la crea con esa canción dentro.
+  - **Escuchar una playlist**: *Reproducir* deja en el mosaico solo sus canciones y pasa a la vista de canciones. Con el aleatorio apagado suenan **en el orden de la playlist**. Arriba se ve «Escuchando «…»» y *Ver todas* devuelve todas tus canciones sin cortar la que suena. Al pulsar una canción en el detalle, la playlist empieza por ella.
+  - Lo que se añade o se quita de la playlist que está sonando entra o sale del mosaico al momento.
+- **Barra de reproducción abajo al desplazarse por el mosaico** (Windows y Android). Mientras la portada que suena se ve, los controles siguen dentro de ella; en cuanto se pierde de vista al bajar o subir, aparece abajo una barra con la canción, la barra de tiempo y los mismos botones (pausa, anterior, siguiente…), para parar o cambiar la música sin ir a buscarla. **«Ir a la canción»** (o pulsar su título) vuelve a la portada y la barra se va sola. En Artistas, Géneros y Playlists la barra de abajo sigue como siempre.
+
+- **Android: lo mismo que en Windows**, adaptado al móvil:
+  - **Favoritos y playlists**: el corazón y el botón de añadir a una playlist van en los controles (la posición en la lista pasa a la línea de los tiempos para que quepan). **Mantener pulsada** una portada o una canción abre el menú con Favoritos, cada playlist (marcada si ya la tiene) y «Nueva playlist…». Pestaña **Playlists** y botón «Tus playlists» en la pantalla inicial; cada playlist se ve en **mosaico** (con «Editar» las portadas se mueven, manteniéndolas pulsadas, y se agrandan con su esquina; moverlas cambia el orden de la playlist) o en **lista** (la X quita la canción). Al crear una playlist se abre el panel para elegir sus canciones, cada una con la carátula de su álbum y con filtro.
+  - **Buscar en YouTube**: barra en la pantalla inicial, «Buscar en YouTube» en el menú ⋮ y la última fila del buscador. Pestañas Canciones y Vídeos; ▶ la pone a sonar y «Añadir» la guarda. También vale el enlace de un vídeo.
+  - **Del momento**: pestaña y botón en la pantalla inicial, con las mismas 8 playlists de Spotify. Se renuevan cada día a las 7:00 con **WorkManager** (sigue programado tras reiniciar el móvil y espera a tener conexión) y la app también las renueva al abrirse si ya ha pasado la hora.
+  - Arriba, mientras suena solo una playlist: «Escuchando «…»» y «Ver todas».
+- **Botón para actualizar** (Windows y Android). Al final de la pantalla inicial se ve la versión instalada y «Buscar actualizaciones». Al abrir la app se mira sin molestar si hay una versión nueva en GitHub; si la hay, sale **«Actualizar a la X»** (en Windows también arriba en el reproductor; en Android, también en el menú ⋮). Se pregunta antes y tus canciones, playlists y ajustes se quedan como están.
+  - **Windows**: se descarga el `.zip` de la versión, el `Launcherito.exe` nuevo ocupa el sitio del actual y Launcherito se vuelve a abrir solo. Si la carpeta no se puede escribir (p. ej. *Archivos de programa*), lo explica y ofrece la página de GitHub.
+  - **Android**: se descarga el `.apk` y se abre el instalador del sistema, que pide confirmar. La primera vez Android pide permitir que Launcherito instale apps. Si la versión nueva está firmada con otra clave (Android no la instalaría encima), se avisa en lugar de fallar.
+  - Las versiones anteriores a esta no tienen el botón: para llegar a la primera que lo tiene hay que actualizar a mano una vez.
+
+### Cambiado
+- Los controles de reproducción son algo más anchos para que quepan el corazón y el ＋ (dentro de una portada pequeña se reducen como antes).
+- Al borrar canciones de «Tus canciones» también se quitan de Favoritos y de las playlists. Si una canción de Spotify o YouTube Music se cambia por el `.mp3` que ya tienes, en las playlists pasa a estar el `.mp3`, en el mismo sitio.
+
+### Corregido
+- Una lista de Spotify cuya portada trae el ancho vacío ya no cierra el programa (pasaba al leer la portada de la propia lista).
+
+### Técnico
+- Android: `UserPlaylists`, `TrendingPlaylists` y `TrendingWorker` (nuevos) guardan `playlists.json` y `del-momento.json` en los archivos de la app, con el mismo formato que en Windows. El mosaico (`Mosaic.kt`) recibe un `MosaicModel` (sus portadas y qué hacer con ellas), así sirve para el reproductor y para cada playlist. Nueva dependencia: `androidx.work:work-runtime-ktx`. Pantallas nuevas en `Playlists.kt` y `PlaylistDialogs.kt`.
+- `TrendingPlaylists` (nuevo) lee las playlists del momento con la misma página de Spotify para insertar listas que ya se usaba (sin cuenta ni claves: la API oficial pide Premium al dueño de la app y desde finales de 2024 no da las playlists editoriales de Spotify a las apps nuevas). Se guardan en `%LOCALAPPDATA%\Launcherito\del-momento.json` y cada intento se apunta en `del-momento.log`. Si una no se puede leer, se queda la del día anterior. La pestaña está en `MainWindow.Trending.cs`.
+- `App` ya no abre la ventana con `StartupUri`: con `--actualizar-del-momento` solo actualiza y se cierra. `OnlineList` trae también la portada de la lista (`CoverUrl`).
+- `YouTubeMusicLibrary.SearchAsync` usa la búsqueda de la web de YouTube Music (`youtubei/v1/search`, con sus filtros de canciones y de vídeos). `LoadVideoAsync` lee un vídeo suelto con el servicio público oEmbed de YouTube. Las canciones encontradas se guardan como las de YouTube Music (`ytmusic:<id del vídeo>`). La ventana está en `MainWindow.YouTube.cs`.
+- El mosaico de una playlist (`MainWindow.PlaylistMosaic.cs`) usa las mismas piezas que el mosaico de siempre (`MosaicPanel`, `MosaicTile`, `MosaicEditor`, `TileAnimator`) con su propio panel. Cada playlist guarda `ListView` y `Spans` (tamaño de cada portada) en `playlists.json`; los archivos anteriores se leen igual.
+- `UserPlaylists` (nuevo) guarda Favoritos y las playlists: cada una con un id, su nombre y las claves de sus canciones en orden. La lógica de la ventana está en `MainWindow.Playlists.cs`.
+- `Playlist` admite un orden propio (`SetCustomOrder`) que se usa sin aleatorio, y `Clear`. El mosaico sigue en orden alfabético.
+- `CategoryCard` acepta icono y fondo propios (tarjetas de las playlists). `SongLibrary.TryGet` busca una canción guardada por su clave.
+- Barra de reproducción: en Windows, la de abajo (`PlayerBar`) sale de la vista de categorías y pasa a una fila propia del reproductor que comparten todas las vistas. `UpdatePlayerBar` decide si se ve y `MoveControls` lleva allí el único juego de controles cuando la franja de abajo de la portada que suena (donde van sus controles) queda fuera de lo visible; se comprueba en cada desplazamiento. En Android, `MosaicView` hace la misma cuenta con su desplazamiento y pone `BottomBar` encima del mosaico, con animación. Al final del mosaico se deja también el sitio que tapa la barra.
+- Actualizaciones: `Updater` (Windows, `MainWindow.Update.cs`) y `AppUpdater` (Android, `Updates.kt`) preguntan a la API de GitHub por la última Release y, si no responde (admite 60 consultas por hora desde una conexión sin cuenta), miran a qué versión lleva `releases/latest` y usan los nombres fijos de los archivos: **`Launcherito-vX-win-x64.zip`** y **`Launcherito-vX.apk`**. En Windows el `.exe` abierto se renombra a `Launcherito.old.exe` (se deja renombrar, no sobrescribir) y se borra al abrir la siguiente vez. En Android, permiso `REQUEST_INSTALL_PACKAGES` y un `FileProvider` (`res/xml/update_paths.xml`) para pasar el `.apk` al instalador.
+- **Importante al publicar una versión**: la etiqueta debe coincidir con `VERSION`, los archivos deben llamarse como arriba y el `.apk` debe firmarse **siempre con la misma clave**. El de la v1.10.1 está firmado con una clave de depuración distinta de la de este PC, así que un `.apk` compilado aquí no se puede instalar encima de él. Conviene crear una clave propia de publicación y usarla a partir de ahora.
+
+## [1.11] - 2026-11-20
+
+### Añadido
+- **Listas y álbumes de YouTube Music**, en Windows y en Android. Botón «Añadir lista de YouTube Music» en la pantalla inicial y «＋ Lista de YouTube Music» arriba (en Android, en el menú ⋮). Se pega el enlace de una lista pública o no listada, o de un álbum, sin cuenta ni Premium, y sus canciones entran en el mosaico con su portada.
+  - Valen los enlaces de `music.youtube.com/playlist?list=…`, `music.youtube.com/browse/MPREb_…` (página de un álbum) y cualquier enlace de `youtube.com` o `youtu.be` con `list=`.
+  - Se leen hasta 500 canciones por lista (Spotify se queda en 100).
+  - Cada canción **suena con su propio vídeo** (ya viene en la lista, no hace falta buscarlo). Si ese vídeo no se puede ver dentro de la aplicación, se prueba con los que da YouTube al buscar la canción.
+  - De los videoclips se limpia el título: «Artista - Canción (Official Video)» queda en «Canción». En los subidos por cualquiera, el artista es el de delante del guion, no el canal.
+  - Las que ya tienes en `.mp3` suenan enteras y no se repiten, como con Spotify.
+  - Los mix y las listas privadas («Me gusta», «Ver más tarde») no se pueden leer sin entrar en la cuenta: se explica con un aviso.
+- Marca de procedencia de YouTube Music en cada portada: un círculo rojo con un aro y el triángulo de reproducir. En «Borrar canciones» salen como «YouTube Music», en rojo.
+- Android: al compartir una lista o un álbum desde la app de YouTube Music y elegir Launcherito, se abre el cuadro con el enlace ya puesto.
+
+### Cambiado
+- El cuadro del enlace sirve para los dos servicios: toma el título y el color del botón con que se abre, pero admite el enlace de Spotify o de YouTube Music.
+- Los avisos de la barra de arriba van en verde si son de Spotify y en rojo si son de YouTube Music. En Android, los de Spotify antes iban en gris.
+
+### Técnico
+- `OnlineSongs` reúne lo común a Spotify y YouTube Music: el registro de canciones (`OnlineTrack`, antes `SpotifyTrack`), reconocer enlaces, leer listas, la caché de portadas y la clave para reconocer un `.mp3` que ya se tiene. `SpotifyLibrary` solo lee Spotify.
+- `YouTubeMusicLibrary` usa el mismo servicio que la web de YouTube Music (`youtubei/v1/browse`, cliente `WEB_REMIX`), de 100 en 100 canciones. Busca los datos por nombre de campo y no por su ruta exacta, para aguantar mejor los cambios de YouTube.
+- Las canciones de YouTube Music se identifican como `ytmusic:<id del vídeo>`. En «Tus canciones» se guarda también la dirección de su portada (`CoverUrl`). Los `canciones.json` anteriores se siguen leyendo igual.
+
 ## [1.10.1] - 2026-10-10
 
 ### Añadido

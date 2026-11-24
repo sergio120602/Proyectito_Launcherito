@@ -25,7 +25,10 @@ public sealed class CategoryCard : Button
     private readonly TextBlock _count;
     private string? _pictureUrl;
 
-    public CategoryCard(string name, bool round)
+    /// <param name="icon">Icono que se ve mientras no hay foto (por defecto, persona o nota musical).</param>
+    /// <param name="iconBrush">Color de ese icono.</param>
+    /// <param name="fill">Fondo de la tarjeta mientras no hay foto.</param>
+    public CategoryCard(string name, bool round, string? icon = null, Brush? iconBrush = null, Brush? fill = null)
     {
         Key = name;
         _round = round;
@@ -42,17 +45,17 @@ public sealed class CategoryCard : Button
 
         var placeholder = new TextBlock
         {
-            Text = round ? "" : "",   // persona / nota musical
+            Text = icon ?? (round ? "" : ""),   // persona / nota musical
             FontFamily = IconFont,
             FontSize = 46,
-            Foreground = PlaceholderBrush,
+            Foreground = iconBrush ?? PlaceholderBrush,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
         Shape background = round
             ? new Ellipse { Width = width, Height = height }
             : new Rectangle { Width = width, Height = height, RadiusX = 14, RadiusY = 14 };
-        background.Fill = EmptyFill;
+        background.Fill = fill ?? EmptyFill;
 
         var pictureArea = new Grid { Width = width, Height = height, HorizontalAlignment = HorizontalAlignment.Center };
         pictureArea.Children.Add(background);
@@ -102,6 +105,9 @@ public sealed class CategoryCard : Button
     public bool HasPicture => _pictureUrl is not null;
 
     public void SetCount(int songs) => _count.Text = songs == 1 ? "1 canción" : $"{songs} canciones";
+
+    /// <summary>Texto libre bajo el nombre, en lugar del número de canciones.</summary>
+    public void SetDetail(string text) => _count.Text = text;
 
     public void SetPicture(string? url)
     {

@@ -95,9 +95,11 @@
             </Setter>
         </Style>
 
-        <!-- Fila con casilla del panel Borrar canciones -->
+        <!-- Fila con casilla (Borrar canciones en rojo; Añadir canciones a una playlist en morado).
+             El color de la casilla marcada es el Background del CheckBox. -->
         <Style x:Key="SongCheck" TargetType="CheckBox">
             <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{StaticResource DangerRed}"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -124,14 +126,85 @@
                                 <Setter TargetName="Row" Property="Background" Value="#1C1C1C"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Box" Property="Background" Value="{StaticResource DangerRed}"/>
-                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource DangerRed}"/>
+                                <Setter TargetName="Box" Property="Background"
+                                        Value="{Binding Background, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Setter TargetName="Box" Property="BorderBrush"
+                                        Value="{Binding Background, RelativeSource={RelativeSource TemplatedParent}}"/>
                                 <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Corazón de Favoritos -->
+        <SolidColorBrush x:Key="FavoritePink" Color="#F472B6"/>
+
+        <!-- Menú oscuro (clic derecho en una canción y botón ＋ de los controles): Favoritos y playlists -->
+        <Style x:Key="DarkMenu" TargetType="ContextMenu">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HasDropShadow" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="#1C1C1C" BorderBrush="#333333" BorderThickness="1" CornerRadius="10"
+                                Padding="6" MinWidth="220">
+                            <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
+                                <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Resources>
+                <Style TargetType="MenuItem">
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="MenuItem">
+                                <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="10,7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="26"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ContentPresenter x:Name="IconHost" ContentSource="Icon" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="Tick" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                   FontSize="12" Foreground="{StaticResource Accent}" Visibility="Collapsed"
+                                                   VerticalAlignment="Center"/>
+                                        <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="False"
+                                                          VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsHighlighted" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#2E2E2E"/>
+                                    </Trigger>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="IconHost" Property="Visibility" Value="Collapsed"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+                <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Separator">
+                                <Border Height="1" Background="#333333" Margin="6,5"/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Style.Resources>
         </Style>
 
         <!-- Buscador con forma de píldora: lupa, texto de ayuda (Tag) mientras está vacío y X para borrarlo -->
@@ -373,6 +446,35 @@
             </Setter>
         </Style>
 
+        <!-- Botón rojo de YouTube Music (pantalla inicial y panel del enlace) -->
+        <SolidColorBrush x:Key="YouTubeMusicRed" Color="#FF0033"/>
+        <Style x:Key="YouTubeMusicButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{StaticResource YouTubeMusicRed}"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="22,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="22"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF3355"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Botón de texto discreto -->
         <Style x:Key="LinkButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Muted}"/>
@@ -469,13 +571,13 @@
     </Window.Resources>
 
     <Grid>
-        <!-- Hueco invisible para el vídeo de las canciones de Spotify fuera de la vista original: se
+        <!-- Hueco invisible para el vídeo de las canciones de Spotify y YouTube Music fuera de la vista original: se
              oye pero no se ve. Va fuera del reproductor para que siga sonando (y con tamaño) también
              en el menú principal; YouTube pide al menos 200 px de alto para reproducir. -->
         <Border x:Name="HiddenVideoHost" Width="400" Height="225" Opacity="0" IsHitTestVisible="False"
                 Panel.ZIndex="-1" HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
 
-        <!-- Pantalla inicial: canciones del PC, las guardadas, borrarlas o una lista de Spotify -->
+        <!-- Pantalla inicial: canciones del PC, las guardadas, borrarlas o una lista de Spotify o YouTube Music -->
         <StackPanel x:Name="StartPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Button x:Name="BackToPlayerButton" Style="{StaticResource SpotifyButton}" Margin="0,0,0,22"
                     HorizontalAlignment="Center" Visibility="Collapsed" Click="BackToPlayerButton_Click">
@@ -485,6 +587,11 @@
                                MaxWidth="360" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Button>
+            <!-- Barra de búsqueda de YouTube: Enter abre el panel con los resultados -->
+            <TextBox x:Name="StartYouTubeBox" Style="{StaticResource SearchBox}" Width="420" FontSize="15" Margin="0,0,0,22"
+                     Tag="Buscar canciones en YouTube…" AutomationProperties.Name="Buscar canciones en YouTube"
+                     ToolTip="Escribe una canción o un artista, o pega el enlace de un vídeo, y pulsa Enter"
+                     KeyDown="StartYouTubeBox_KeyDown"/>
             <Button Content="Cargar Archivos" Style="{StaticResource BigButton}" Click="LoadButton_Click"/>
             <Button x:Name="LibraryButton" Style="{StaticResource StartButton}" Margin="0,16,0,0"
                     AutomationProperties.Name="Tus canciones" Click="LibraryButton_Click">
@@ -502,6 +609,26 @@
                     <TextBlock Text="Borrar canciones" Margin="12,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
+            <Button x:Name="StartPlaylistsButton" Style="{StaticResource StartButton}" Margin="0,12,0,0"
+                    AutomationProperties.Name="Tus playlists" Click="StartPlaylistsButton_Click"
+                    ToolTip="Favoritos y las playlists que hayas hecho">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xEB52;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"
+                               Foreground="{StaticResource FavoritePink}"/>
+                    <TextBlock Text="Tus playlists" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="PlaylistsCountText" Margin="10,0,0,0" Foreground="{StaticResource Muted}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <Button Style="{StaticResource StartButton}" Margin="0,12,0,0"
+                    AutomationProperties.Name="Del momento" Click="StartTrendingButton_Click"
+                    ToolTip="Las playlists más escuchadas de Spotify, renovadas cada día a las 7:00">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"
+                               Foreground="{StaticResource SpotifyGreen}"/>
+                    <TextBlock Text="Del momento" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
             <Button Style="{StaticResource SpotifyButton}" Margin="0,22,0,0" HorizontalAlignment="Center"
                     AutomationProperties.Name="Añadir lista de Spotify"
                     Click="SpotifyButton_Click">
@@ -510,8 +637,37 @@
                     <TextBlock Text="Añadir lista de Spotify" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
+            <Button Style="{StaticResource YouTubeMusicButton}" Margin="0,12,0,0" HorizontalAlignment="Center"
+                    AutomationProperties.Name="Añadir lista de YouTube Music"
+                    Click="YouTubeMusicButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE768;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                    <TextBlock Text="Añadir lista de YouTube Music" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
             <TextBlock Margin="0,18,0,0" FontSize="13" Foreground="{StaticResource Muted}" HorizontalAlignment="Center"
                        Text="Las canciones que cargues se guardan solas en «Tus canciones»."/>
+
+            <!-- Actualizar: la versión abierta y el botón para buscar o instalar una más nueva (MainWindow.Update.cs) -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
+                <TextBlock x:Name="VersionText" FontSize="13" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+                <Button x:Name="UpdateButton" Style="{StaticResource LinkButton}" Margin="12,0,0,0" FontSize="13"
+                        VerticalAlignment="Center" Click="UpdateButton_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE895;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="UpdateButtonText" Text="Buscar actualizaciones" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <Button x:Name="InstallUpdateButton" Style="{StaticResource ColorPillButton}" Background="{StaticResource Accent}"
+                    HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed" Click="UpdateButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="InstallUpdateText" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <TextBlock x:Name="UpdateStatusText" FontSize="13" Foreground="{StaticResource Muted}" HorizontalAlignment="Center"
+                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="460" Margin="0,6,0,0" Visibility="Collapsed"/>
         </StackPanel>
 
         <!-- Reproductor -->
@@ -519,6 +675,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Barra superior. Arriba: inicio, pestañas | buscador | editar y cambio de vista.
@@ -545,6 +702,10 @@
                     <Button x:Name="SongsTab" Style="{StaticResource TabButton}" Content="Canciones" Click="SongsTab_Click"/>
                     <Button x:Name="ArtistsTab" Style="{StaticResource TabButton}" Content="Artistas" Click="ArtistsTab_Click"/>
                     <Button x:Name="GenresTab" Style="{StaticResource TabButton}" Content="Géneros" Click="GenresTab_Click"/>
+                    <Button x:Name="PlaylistsTab" Style="{StaticResource TabButton}" Content="Playlists" Click="PlaylistsTab_Click"
+                            ToolTip="Favoritos y tus playlists"/>
+                    <Button x:Name="TrendingTab" Style="{StaticResource TabButton}" Content="Del momento" Click="TrendingTab_Click"
+                            ToolTip="Las playlists más escuchadas de Spotify, renovadas cada día a las 7:00"/>
                 </StackPanel>
 
                 <!-- Buscador: las coincidencias salen en una lista debajo; al pulsar una, suena -->
@@ -597,6 +758,10 @@
                     <Button Style="{StaticResource LinkButton}" Content="＋  Añadir canciones" Click="LoadButton_Click"/>
                     <Button Style="{StaticResource LinkButton}" Content="＋  Lista de Spotify" Margin="16,0,0,0"
                             Click="SpotifyButton_Click"/>
+                    <Button Style="{StaticResource LinkButton}" Content="＋  Lista de YouTube Music" Margin="16,0,0,0"
+                            Click="YouTubeMusicButton_Click"/>
+                    <Button Style="{StaticResource LinkButton}" Content="＋  Desde YouTube" Margin="16,0,0,0"
+                            ToolTip="Buscar canciones en YouTube y añadirlas a tus canciones" Click="YouTubeSearchButton_Click"/>
                     <!-- Solo se ve si hay canciones guardadas que no están cargadas -->
                     <Button x:Name="TopLibraryButton" Style="{StaticResource LinkButton}" Margin="16,0,0,0"
                             Visibility="Collapsed" Click="LibraryButton_Click"/>
@@ -604,7 +769,18 @@
                             ToolTip="Borrar canciones de «Tus canciones»" AutomationProperties.Name="Borrar canciones"
                             Margin="16,0,0,0" Visibility="Collapsed" Click="DeleteSongsButton_Click"/>
                     <TextBlock x:Name="SongCountText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
-                    <TextBlock x:Name="SpotifyStatusText" FontSize="13" Foreground="{StaticResource SpotifyGreen}" Margin="16,0,0,0"/>
+                    <!-- Solo si hay una versión nueva: lleva al mismo botón que la pantalla inicial -->
+                    <Button x:Name="TopUpdateButton" Style="{StaticResource LinkButton}" Margin="16,0,0,0" Visibility="Collapsed"
+                            Foreground="{StaticResource Accent}" Click="UpdateButton_Click"/>
+                    <!-- Mientras suena una playlist: su nombre y la vuelta a todas las canciones -->
+                    <StackPanel x:Name="SessionPanel" Orientation="Horizontal" Margin="16,0,0,0" Visibility="Collapsed">
+                        <TextBlock x:Name="SessionText" FontSize="13" Foreground="{StaticResource Accent}"
+                                   MaxWidth="260" TextTrimming="CharacterEllipsis"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Ver todas" Margin="10,0,0,0"
+                                ToolTip="Volver a tener todas tus canciones en el mosaico (la que suena sigue sonando)"
+                                Click="LeaveSession_Click"/>
+                    </StackPanel>
+                    <TextBlock x:Name="ListStatusText" FontSize="13" Foreground="{StaticResource SpotifyGreen}" Margin="16,0,0,0"/>
                     <TextBlock x:Name="CatalogStatusText" FontSize="13" Foreground="{StaticResource Muted}" Margin="16,0,0,0"/>
                 </StackPanel>
             </Grid>
@@ -620,7 +796,6 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- Cabecera del detalle: volver | foto | nombre -->
@@ -636,33 +811,107 @@
                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
                         <TextBlock x:Name="CategoryTitleText" FontSize="28" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                         <TextBlock x:Name="CategorySubtitleText" FontSize="13" Foreground="{StaticResource Muted}"/>
+                        <!-- Solo en el detalle de una playlist del momento -->
+                        <WrapPanel x:Name="TrendingActions" Margin="0,10,0,0" Visibility="Collapsed">
+                            <Button Style="{StaticResource ColorPillButton}" Background="{StaticResource Accent}" Margin="0,0,8,6"
+                                    Click="PlayTrending_Click" ToolTip="Escuchar esta playlist (cada canción con su vídeo de YouTube)">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE768;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Reproducir" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource PillButton}" Margin="0,0,8,6" Click="SaveTrending_Click"
+                                    ToolTip="Copiarla tal como está hoy a tus playlists (y sus canciones a «Tus canciones»)">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE74E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Guardar en mis playlists" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource PillButton}" Margin="0,0,8,6" Click="OpenTrendingInSpotify_Click"
+                                    ToolTip="Abrir la playlist en Spotify">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8A7;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center" Foreground="{StaticResource SpotifyGreen}"/>
+                                    <TextBlock Text="Ver en Spotify" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
+                        <!-- Solo en el detalle de una playlist -->
+                        <WrapPanel x:Name="PlaylistActions" Margin="0,10,0,0" Visibility="Collapsed">
+                            <Button x:Name="PlayListButton" Style="{StaticResource ColorPillButton}"
+                                    Background="{StaticResource Accent}" Margin="0,0,8,6" Click="PlayListButton_Click"
+                                    ToolTip="Escuchar solo las canciones de esta playlist">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE768;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Reproducir" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource PillButton}" Margin="0,0,8,6" Click="AddSongsToList_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Añadir canciones" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <!-- Vista de la playlist: lista sencilla o mosaico de portadas (muestra a la que se cambia) -->
+                            <Button x:Name="ListViewToggleButton" Style="{StaticResource PillButton}" Margin="0,0,8,6"
+                                    Click="ListViewToggle_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="ListViewToggleIcon" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="ListViewToggleText" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <!-- Solo en el mosaico: mover y agrandar portadas; en verde mientras se edita -->
+                            <Button x:Name="ListEditButton" Style="{StaticResource ColorPillButton}" Background="#1C1C1C"
+                                    Margin="0,0,8,6" Click="ListEdit_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="ListEditIcon" Text="&#xE70F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="ListEditText" Text="Editar" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="RenameListButton" Style="{StaticResource PillButton}" Margin="0,0,8,6"
+                                    Click="RenameList_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8AC;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Renombrar" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DeleteListButton" Style="{StaticResource PillButton}" Margin="0,0,8,6"
+                                    Click="DeleteList_Click" ToolTip="Las canciones no se borran de «Tus canciones»">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="14" VerticalAlignment="Center" Foreground="{StaticResource DangerRed}"/>
+                                    <TextBlock Text="Borrar playlist" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
                     </StackPanel>
                 </Grid>
 
                 <ScrollViewer x:Name="CategoryScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled">
+                              HorizontalScrollBarVisibility="Disabled" ScrollChanged="CategoryScroll_ScrollChanged">
                     <StackPanel Margin="20,8,20,20">
+                        <!-- Del momento: de dónde salen, cuándo se actualizaron y «Actualizar ahora» -->
+                        <StackPanel x:Name="TrendingInfo" Orientation="Horizontal" Margin="0,0,0,18" Visibility="Collapsed">
+                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
+                                       Foreground="{StaticResource SpotifyGreen}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TrendingStatusText" FontSize="13" Foreground="{StaticResource Muted}"
+                                       Margin="10,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <Button x:Name="TrendingRefreshButton" Style="{StaticResource LinkButton}" Content="Actualizar ahora"
+                                    Margin="16,0,0,0" VerticalAlignment="Center" Click="TrendingRefresh_Click"/>
+                        </StackPanel>
                         <WrapPanel x:Name="CardsPanel"/>
                         <StackPanel x:Name="SongListPanel" Visibility="Collapsed"/>
+                        <!-- Una playlist en vista mosaico: sus portadas, que se mueven y agrandan con «Editar» -->
+                        <local:MosaicPanel x:Name="PlaylistMosaic" Visibility="Collapsed"/>
                     </StackPanel>
                 </ScrollViewer>
-
-                <!-- Reproductor en la parte de abajo mientras se navega por artistas y géneros -->
-                <Border Grid.Row="2" Background="#0E0E0E" Padding="20,10,20,8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock x:Name="BarTitleText" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock x:Name="BarArtistText" FontSize="12" Foreground="{StaticResource Muted}"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                        <Border x:Name="BarControlsHost" Grid.Column="1" Width="520"/>
-                    </Grid>
-                </Border>
             </Grid>
 
             <!-- Vista original: una canción -->
@@ -716,49 +965,92 @@
                                        HorizontalAlignment="Right"/>
                         </Grid>
 
-                        <!-- Controles: aleatorio | anterior | reproducir/pausar | siguiente | posición en la lista -->
+                        <!-- Controles: favorito, aleatorio | anterior | reproducir/pausar | siguiente | añadir a playlist, posición -->
                         <Grid Margin="0,10,0,0" HorizontalAlignment="Center">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="64"/>
+                                <ColumnDefinition Width="108"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="64"/>
+                                <ColumnDefinition Width="108"/>
                             </Grid.ColumnDefinitions>
-                            <Button x:Name="ShuffleButton" Grid.Column="0" Style="{StaticResource IconButton}" FontSize="18"
-                                    Content="&#xE8B1;" Click="ShuffleButton_Click"/>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button x:Name="FavoriteButton" Style="{StaticResource IconButton}" Width="44" Height="44"
+                                        FontSize="18" Content="&#xEB51;" Click="FavoriteButton_Click"/>
+                                <Button x:Name="ShuffleButton" Style="{StaticResource IconButton}" FontSize="18"
+                                        Content="&#xE8B1;" Click="ShuffleButton_Click"/>
+                            </StackPanel>
                             <Button x:Name="PreviousButton" Grid.Column="1" Style="{StaticResource IconButton}" Margin="0,0,12,0"
                                     Content="&#xE892;" ToolTip="Canción anterior" Click="PreviousButton_Click"/>
                             <Button x:Name="PlayPauseButton" Grid.Column="2" Style="{StaticResource RoundButton}"
                                     Content="&#xE768;" ToolTip="Reproducir / Pausar" Click="PlayPauseButton_Click"/>
                             <Button x:Name="NextButton" Grid.Column="3" Style="{StaticResource IconButton}" Margin="12,0,0,0"
                                     Content="&#xE893;" ToolTip="Canción siguiente" Click="NextButton_Click"/>
-                            <TextBlock x:Name="PositionText" Grid.Column="4" FontSize="12" Foreground="{StaticResource Muted}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Posición en la lista"/>
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button x:Name="AddToListButton" Style="{StaticResource IconButton}" Width="44" Height="44"
+                                        FontSize="18" Content="&#xE710;" Foreground="{StaticResource Muted}"
+                                        ToolTip="Añadir a una playlist" Click="AddToListButton_Click"/>
+                                <TextBlock x:Name="PositionText" FontSize="12" Foreground="{StaticResource Muted}"
+                                           MinWidth="44" TextAlignment="Center"
+                                           VerticalAlignment="Center" ToolTip="Posición en la lista"/>
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <!-- Barra de reproducción de abajo. Siempre en Artistas, Géneros y Playlists; en el mosaico,
+                 solo cuando la portada que suena (con sus controles) se ha perdido de vista al desplazarse.
+                 Los controles son los mismos que van dentro de la portada: se mueven aquí (MoveControls). -->
+            <Border x:Name="PlayerBar" Grid.Row="2" Background="#0E0E0E" Padding="20,10,20,8"
+                    BorderBrush="#222222" BorderThickness="0,1,0,0" Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- En el mosaico, pulsar el título lleva a la portada que suena -->
+                    <StackPanel x:Name="BarSongInfo" VerticalAlignment="Center" Margin="0,0,16,0" Background="Transparent"
+                                MouseLeftButtonUp="BarSongInfo_MouseLeftButtonUp">
+                        <TextBlock x:Name="BarTitleText" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="BarArtistText" FontSize="12" Foreground="{StaticResource Muted}"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <Border x:Name="BarControlsHost" Grid.Column="1" Width="520"/>
+                    <Button x:Name="GoToSongButton" Grid.Column="2" Style="{StaticResource PillButton}"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0,0,0"
+                            ToolTip="Volver a la portada de la canción que suena" Click="GoToSongButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="Ir a la canción" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
         </Grid>
 
-        <!-- Panel para pegar el enlace de una lista de Spotify, por encima de todo -->
-        <Grid x:Name="SpotifyOverlay" Background="#CC000000" Visibility="Collapsed">
+        <!-- Panel para pegar el enlace de una lista de Spotify o YouTube Music, por encima de todo.
+             El título, la explicación y el color del botón cambian según el botón con que se abre;
+             el enlace puede ser de cualquiera de los dos. -->
+        <Grid x:Name="ListOverlay" Background="#CC000000" Visibility="Collapsed">
             <Border Background="#161616" CornerRadius="18" Padding="28,24" Margin="20"
                     MaxWidth="560" VerticalAlignment="Center">
                 <StackPanel>
-                    <TextBlock Text="Añadir lista de Spotify" FontSize="22" FontWeight="SemiBold"/>
-                    <TextBlock Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
-                               Text="Pega el enlace de una lista pública o de un álbum (Compartir → Copiar enlace). Se cargan hasta 100 canciones con su portada. Las que ya tengas en .mp3 suenan enteras; las demás suenan con su vídeo de YouTube, que se ve en la vista original."/>
-                    <TextBox x:Name="SpotifyLinkBox" Margin="0,18,0,0" Padding="10,8" FontSize="14"
+                    <TextBlock x:Name="ListDialogTitle" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="ListDialogHelp" Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}"
+                               TextWrapping="Wrap"/>
+                    <TextBox x:Name="ListLinkBox" Margin="0,18,0,0" Padding="10,8" FontSize="14"
                              Background="#0E0E0E" Foreground="White" CaretBrush="White" BorderBrush="#333333"
-                             KeyDown="SpotifyLinkBox_KeyDown"/>
-                    <TextBlock x:Name="SpotifyDialogStatus" Margin="0,10,0,0" FontSize="13" TextWrapping="Wrap"
+                             KeyDown="ListLinkBox_KeyDown"/>
+                    <TextBlock x:Name="ListDialogStatus" Margin="0,10,0,0" FontSize="13" TextWrapping="Wrap"
                                Foreground="{StaticResource Muted}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
                         <Button Style="{StaticResource LinkButton}" Content="Cancelar" FontSize="14" VerticalAlignment="Center"
-                                Click="SpotifyCancel_Click"/>
-                        <Button x:Name="SpotifyAddButton" Style="{StaticResource SpotifyButton}" Content="Añadir"
-                                Margin="22,0,0,0" Click="SpotifyAdd_Click"/>
+                                Click="ListCancel_Click"/>
+                        <Button x:Name="ListAddButton" Style="{StaticResource SpotifyButton}" Content="Añadir"
+                                Margin="22,0,0,0" Click="ListAdd_Click"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -791,6 +1083,114 @@
                                 Margin="22,0,0,0" Click="ConfirmDelete_Click"/>
                     </StackPanel>
                 </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Panel Añadir canciones a una playlist: se marcan con casillas entre las de «Tus canciones» -->
+        <Grid x:Name="PickOverlay" Background="#CC000000" Visibility="Collapsed" Focusable="True" KeyDown="PickOverlay_KeyDown">
+            <Border Background="#161616" CornerRadius="18" Padding="28,24" Margin="20"
+                    MaxWidth="620" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="PickTitle" FontSize="22" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Row="1" Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+                               Text="Marca las canciones de «Tus canciones» que quieras añadir. Se ponen al final de la playlist."/>
+                    <TextBox x:Name="PickFilterBox" Grid.Row="2" Margin="0,16,0,0" Style="{StaticResource SearchBox}"
+                             Tag="Filtrar por canción o artista…" AutomationProperties.Name="Filtrar canciones"
+                             TextChanged="PickFilterBox_TextChanged"/>
+                    <Button x:Name="PickAllButton" Grid.Row="3" Style="{StaticResource LinkButton}" Margin="12,14,0,6"
+                            HorizontalAlignment="Left" Click="PickAllButton_Click"/>
+                    <ScrollViewer x:Name="PickScroll" Grid.Row="4" MaxHeight="420" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="PickList"/>
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                        <Button Style="{StaticResource LinkButton}" Content="Cancelar" FontSize="14" VerticalAlignment="Center"
+                                Click="PickCancel_Click"/>
+                        <Button x:Name="ConfirmPickButton" Style="{StaticResource ColorPillButton}"
+                                Background="{StaticResource Accent}" FontSize="15" FontWeight="SemiBold" Padding="22,10"
+                                Margin="22,0,0,0" Click="ConfirmPick_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Panel Buscar en YouTube: canciones o vídeos (o el enlace de un vídeo) que se añaden a «Tus canciones» -->
+        <Grid x:Name="YouTubeOverlay" Background="#CC000000" Visibility="Collapsed" Focusable="True"
+              KeyDown="YouTubeOverlay_KeyDown">
+            <Border Background="#161616" CornerRadius="18" Padding="28,24" Margin="20"
+                    MaxWidth="720" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE714;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22"
+                                   Foreground="{StaticResource YouTubeMusicRed}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Buscar en YouTube" FontSize="22" FontWeight="SemiBold" Margin="12,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Margin="0,8,0,0" FontSize="13" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+                               Text="Busca una canción o un artista, o pega el enlace de un vídeo. Las que añadas se quedan en «Tus canciones» y suenan con su vídeo de YouTube, como las de YouTube Music."/>
+                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="YouTubeQueryBox" Style="{StaticResource SearchBox}" FontSize="14"
+                                 Tag="Canción, artista o enlace de YouTube…" AutomationProperties.Name="Buscar en YouTube"
+                                 KeyDown="YouTubeQueryBox_KeyDown"/>
+                        <Button x:Name="YouTubeSearchGo" Grid.Column="1" Style="{StaticResource YouTubeMusicButton}"
+                                Content="Buscar" Margin="10,0,0,0" Click="YouTubeSearchGo_Click"/>
+                    </Grid>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,14,0,0">
+                        <Button x:Name="YouTubeSongsTab" Style="{StaticResource TabButton}" Content="Canciones" Tag="Active"
+                                ToolTip="Canciones de álbumes, con su portada" Click="YouTubeSongsTab_Click"/>
+                        <Button x:Name="YouTubeVideosTab" Style="{StaticResource TabButton}" Content="Vídeos"
+                                ToolTip="Videoclips, directos, versiones…" Click="YouTubeVideosTab_Click"/>
+                    </StackPanel>
+                    <TextBlock x:Name="YouTubeStatus" Grid.Row="4" Margin="4,10,0,4" FontSize="13" TextWrapping="Wrap"
+                               Foreground="{StaticResource Muted}"/>
+                    <ScrollViewer x:Name="YouTubeScroll" Grid.Row="5" MaxHeight="430" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="YouTubeResults"/>
+                    </ScrollViewer>
+                    <Button Grid.Row="6" Style="{StaticResource LinkButton}" Content="Cerrar" FontSize="14"
+                            HorizontalAlignment="Right" Margin="0,16,0,0" Click="YouTubeClose_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Panel para poner nombre a una playlist nueva o cambiárselo a una que ya existe -->
+        <Grid x:Name="NameOverlay" Background="#CC000000" Visibility="Collapsed">
+            <Border Background="#161616" CornerRadius="18" Padding="28,24" Margin="20"
+                    MaxWidth="480" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock x:Name="NameDialogTitle" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBox x:Name="NameBox" Margin="0,18,0,0" Padding="10,8" FontSize="14" MaxLength="60"
+                             Background="#0E0E0E" Foreground="White" CaretBrush="White" BorderBrush="#333333"
+                             AutomationProperties.Name="Nombre de la playlist" KeyDown="NameBox_KeyDown"/>
+                    <TextBlock x:Name="NameDialogStatus" Margin="0,10,0,0" FontSize="13" TextWrapping="Wrap"
+                               Foreground="{StaticResource DangerRed}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                        <Button Style="{StaticResource LinkButton}" Content="Cancelar" FontSize="14" VerticalAlignment="Center"
+                                Click="NameCancel_Click"/>
+                        <Button x:Name="NameSaveButton" Style="{StaticResource ColorPillButton}"
+                                Background="{StaticResource Accent}" FontSize="15" FontWeight="SemiBold" Padding="22,10"
+                                Margin="22,0,0,0" Click="NameSave_Click"/>
+                    </StackPanel>
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

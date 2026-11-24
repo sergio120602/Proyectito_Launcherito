@@ -19,13 +19,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,8 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.sergio120602.launcherito.R
+import io.github.sergio120602.launcherito.data.OnlineSource
 
-/** Menú principal: canciones del móvil, las guardadas, borrarlas o una lista de Spotify. */
+/** Menú principal: canciones del móvil, las guardadas, borrarlas o una lista de Spotify o YouTube Music. */
 @Composable
 fun StartScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
     Column(
@@ -66,6 +79,25 @@ fun StartScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
             Spacer(Modifier.height(18.dp))
         }
 
+        // Barra de búsqueda de YouTube: Buscar abre el panel con los resultados.
+        var query by remember { mutableStateOf("") }
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            singleLine = true,
+            shape = RoundedCornerShape(22.dp),
+            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            placeholder = { Text("Buscar canciones en YouTube…", maxLines = 1) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = {
+                vm.openYouTube(query)
+                query = ""
+            }),
+            colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Pill, focusedContainerColor = Pill),
+            modifier = Modifier.widthIn(min = 260.dp, max = 420.dp),
+        )
+        Spacer(Modifier.height(18.dp))
+
         Button(
             onClick = onLoadFiles,
             shape = RoundedCornerShape(18.dp),
@@ -91,10 +123,31 @@ fun StartScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         StartButton(
+            text = "Tus playlists",
+            icon = Icons.Rounded.Favorite,
+            content = FavoritePink,
+            onClick = { vm.showSectionFromStart(Section.Playlists) },
+        )
+        Spacer(Modifier.height(10.dp))
+        StartButton(
+            text = "Del momento",
+            icon = Icons.AutoMirrored.Rounded.TrendingUp,
+            content = SpotifyGreen,
+            onClick = { vm.showSectionFromStart(Section.Trending) },
+        )
+        Spacer(Modifier.height(10.dp))
+        StartButton(
             text = "Lista de Spotify",
             icon = null,
-            spotify = true,
-            onClick = { vm.openSpotifyDialog() },
+            source = OnlineSource.Spotify,
+            onClick = { vm.openListDialog(OnlineSource.Spotify) },
+        )
+        Spacer(Modifier.height(10.dp))
+        StartButton(
+            text = "Lista de YouTube Music",
+            icon = null,
+            source = OnlineSource.YouTubeMusic,
+            onClick = { vm.openListDialog(OnlineSource.YouTubeMusic) },
         )
         Spacer(Modifier.height(22.dp))
         TextSizeChooser(vm)
@@ -105,6 +158,8 @@ fun StartScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
                 color = Muted, fontSize = 13.sp, textAlign = TextAlign.Center,
             )
         }
+        Spacer(Modifier.height(16.dp))
+        UpdateSection(vm)   // versión y botón de actualizar (Updates.kt)
     }
 }
 
@@ -138,7 +193,7 @@ private fun StartButton(
     icon: ImageVector?,
     onClick: () -> Unit,
     enabled: Boolean = true,
-    spotify: Boolean = false,
+    source: OnlineSource? = null,   // si es el botón de una lista, lleva la marca de su servicio
     background: Color = Pill,
     content: Color = Color.White,
 ) {
@@ -155,8 +210,11 @@ private fun StartButton(
         contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp),
         modifier = Modifier.widthIn(min = 260.dp, max = 420.dp),
     ) {
-        if (spotify) SpotifyBadge(size = 22.dp)
-        else if (icon != null) Icon(icon, contentDescription = null)
+        when {
+            source == OnlineSource.Spotify -> SpotifyBadge(size = 22.dp)
+            source == OnlineSource.YouTubeMusic -> YouTubeMusicBadge(size = 22.dp)
+            icon != null -> Icon(icon, contentDescription = null)
+        }
         Spacer(Modifier.size(10.dp))
         Text(text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }

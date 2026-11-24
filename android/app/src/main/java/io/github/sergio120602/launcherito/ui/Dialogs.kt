@@ -42,12 +42,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import io.github.sergio120602.launcherito.data.SpotifyLibrary
+import io.github.sergio120602.launcherito.data.OnlineSongs
+import io.github.sergio120602.launcherito.data.OnlineSource
+import io.github.sergio120602.launcherito.data.YouTubeMusicLibrary
 
 /** Todos los cuadros de diálogo de la app. */
 @Composable
 fun Dialogs(vm: LauncheritoViewModel) {
-    if (vm.spotifyDialogOpen) SpotifyDialog(vm)
+    vm.listDialogSource?.let { ListDialog(vm, it) }
+    UpdateDialog(vm)   // «¿Actualizar a la X?» (Updates.kt)
     if (vm.deleteRows != null) DeleteDialog(vm)
     if (vm.confirmDelete) {
         AlertDialog(
@@ -70,57 +73,73 @@ fun Dialogs(vm: LauncheritoViewModel) {
     }
 }
 
-/** Pegar el enlace de una lista pública o de un álbum de Spotify. */
+/**
+ * Pegar el enlace de una lista o un álbum. El título, la explicación y el color van según [source]
+ * (el botón con que se ha abierto), pero se admite el enlace de Spotify o de YouTube Music.
+ */
 @Composable
-private fun SpotifyDialog(vm: LauncheritoViewModel) {
+private fun ListDialog(vm: LauncheritoViewModel, source: OnlineSource) {
     val context = LocalContext.current
-    // Si se acaba de copiar un enlace de Spotify, ya aparece pegado.
+    val spotify = source == OnlineSource.Spotify
+    val color = if (spotify) SpotifyGreen else YouTubeRed
+    // Si se acaba de copiar un enlace de una lista, ya aparece pegado.
     LaunchedEffect(Unit) {
-        if (vm.spotifyLink.isEmpty()) {
+        if (vm.listLink.isEmpty()) {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val text = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
-            if (SpotifyLibrary.parseLink(text) != null) vm.spotifyLink = text!!.trim()
+            if (OnlineSongs.parseLink(text) != null) vm.listLink = text!!.trim()
         }
     }
     AlertDialog(
-        onDismissRequest = vm::closeSpotifyDialog,
-        title = { Text("Lista de Spotify") },
+        onDismissRequest = vm::closeListDialog,
+        title = { Text("Lista de ${OnlineSongs.name(source)}") },
         text = {
             Column {
                 Text(
-                    "Pega el enlace de una lista pública o de un álbum. No hace falta cuenta. Las canciones que " +
-                        "ya tienes en .mp3 suenan enteras; las demás, con su vídeo de YouTube.",
+                    if (spotify) {
+                        "Pega el enlace de una lista pública o de un álbum. No hace falta cuenta. Las canciones que " +
+                            "ya tienes en .mp3 suenan enteras; las demás, con su vídeo de YouTube."
+                    } else {
+                        "Pega el enlace de una lista pública o no listada, o de un álbum. No hace falta cuenta. Se " +
+                            "cargan hasta ${YouTubeMusicLibrary.MAX_TRACKS} canciones. Las que ya tienes en .mp3 " +
+                            "suenan enteras; las demás, con su vídeo."
+                    },
                     color = Muted, fontSize = 14.sp,
                 )
                 Spacer(Modifier.padding(6.dp))
                 OutlinedTextField(
-                    value = vm.spotifyLink,
-                    onValueChange = { vm.spotifyLink = it },
+                    value = vm.listLink,
+                    onValueChange = { vm.listLink = it },
                     singleLine = true,
-                    enabled = !vm.spotifyBusy,
-                    placeholder = { Text("https://open.spotify.com/playlist/…") },
+                    enabled = !vm.listBusy,
+                    placeholder = {
+                        Text(if (spotify) "https://open.spotify.com/playlist/…" else "https://music.youtube.com/playlist?list=…")
+                    },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                    keyboardActions = KeyboardActions(onGo = { vm.addSpotifyList() }),
+                    keyboardActions = KeyboardActions(onGo = { vm.addList() }),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (vm.spotifyBusy) {
+                if (vm.listBusy) {
                     Spacer(Modifier.padding(4.dp))
-                    LinearProgressIndicator(Modifier.fillMaxWidth(), color = SpotifyGreen)
+                    LinearProgressIndicator(Modifier.fillMaxWidth(), color = color)
                 }
-                if (vm.spotifyDialogStatus.isNotEmpty()) {
+                if (vm.listDialogStatus.isNotEmpty()) {
                     Spacer(Modifier.padding(4.dp))
-                    Text(vm.spotifyDialogStatus, fontSize = 13.sp)
+                    Text(vm.listDialogStatus, fontSize = 13.sp)
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = vm::addSpotifyList,
-                enabled = !vm.spotifyBusy,
-                colors = ButtonDefaults.buttonColors(containerColor = SpotifyGreen, contentColor = Color.Black),
+                onClick = vm::addList,
+                enabled = !vm.listBusy,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = color,
+                    contentColor = if (spotify) Color.Black else Color.White,
+                ),
             ) { Text("Añadir") }
         },
-        dismissButton = { TextButton(onClick = vm::closeSpotifyDialog, enabled = !vm.spotifyBusy) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = vm::closeListDialog, enabled = !vm.listBusy) { Text("Cancelar") } },
     )
 }
 
@@ -168,13 +187,14 @@ private fun DeleteDialog(vm: LauncheritoViewModel) {
                             Text(
                                 when {
                                     row.missing -> "no se encuentra"
-                                    row.isSpotify -> "Spotify"
+                                    row.source != null -> OnlineSongs.name(row.source)
                                     else -> ".mp3"
                                 },
                                 fontSize = 12.sp,
                                 color = when {
                                     row.missing -> DangerRed
-                                    row.isSpotify -> SpotifyGreen
+                                    row.source == OnlineSource.Spotify -> SpotifyGreen
+                                    row.source == OnlineSource.YouTubeMusic -> YouTubeRed
                                     else -> Muted
                                 },
                                 modifier = Modifier.padding(end = 12.dp),

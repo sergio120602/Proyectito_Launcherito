@@ -12,8 +12,9 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Vídeos de YouTube de las canciones: las de Spotify (que no se pueden escuchar enteras dentro de
- * Launcherito) y las de los .mp3 en la vista original. Se busca "artista título" en YouTube (sin
- * clave) y se toman los primeros vídeos.
+ * Launcherito), las de YouTube Music y las de los .mp3 en la vista original. Se busca "artista
+ * título" en YouTube (sin clave) y se toman los primeros vídeos. Las de YouTube Music ya traen su
+ * vídeo, que va el primero; los de la búsqueda quedan detrás por si ese no se deja ver aquí.
  */
 object YouTubeLinks {
     private const val MAX_VIDEOS = 5   // si el primero no se deja ver dentro de otra app, se prueban los siguientes
@@ -28,6 +29,7 @@ object YouTubeLinks {
      */
     suspend fun findVideos(key: String, artist: String, title: String): List<String> {
         videos[key]?.let { return it }
+        val own = YouTubeMusicLibrary.videoId(key)
         return try {
             val html = withContext(Dispatchers.IO) {
                 Http.get(
@@ -38,11 +40,14 @@ object YouTubeLinks {
                     client = client,
                 )
             }
-            val ids = videoPattern.findAll(html).map { it.groups["id"]!!.value }.distinct().take(MAX_VIDEOS).toList()
+            val found = videoPattern.findAll(html).map { it.groups["id"]!!.value }
+            val ids = (if (own == null) found else sequenceOf(own) + found).distinct().take(MAX_VIDEOS).toList()
             if (ids.isNotEmpty()) videos[key] = ids
             ids
         } catch (_: IOException) {
-            emptyList()   // sin conexión o YouTube no responde
+            // Sin conexión o YouTube no responde. La de YouTube Music aún tiene su vídeo (no se
+            // recuerda, para volver a buscar alternativas la próxima vez).
+            listOfNotNull(own)
         }
     }
 

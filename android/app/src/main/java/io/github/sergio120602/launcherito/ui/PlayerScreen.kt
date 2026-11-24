@@ -3,7 +3,9 @@ package io.github.sergio120602.launcherito.ui
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,9 +42,11 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -50,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -76,7 +81,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import io.github.sergio120602.launcherito.data.SongCover
-import io.github.sergio120602.launcherito.data.SpotifyLibrary
+import io.github.sergio120602.launcherito.data.OnlineSongs
+import io.github.sergio120602.launcherito.data.OnlineSource
 import io.github.sergio120602.launcherito.player.YouTubeVideo
 
 @Composable
@@ -86,6 +92,7 @@ fun PlayerScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
         when {
             vm.searchQuery.isNotEmpty() -> vm.searchQuery = ""
             vm.isEditing -> vm.editMosaic(false)
+            vm.playlistEditing -> vm.editPlaylist(false)
             vm.openCategory != null -> vm.openCategory(null)
             vm.section != Section.Songs -> vm.showSection(Section.Songs)
             else -> vm.goHome()
@@ -98,6 +105,8 @@ fun PlayerScreen(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
         StatusLine(vm)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                vm.section == Section.Playlists -> PlaylistsView(vm)
+                vm.section == Section.Trending -> TrendingView(vm)
                 vm.section != Section.Songs -> CategoryView(vm)
                 vm.mosaicView -> MosaicView(vm, Modifier.padding(horizontal = 10.dp))
                 else -> SingleView(vm)
@@ -122,10 +131,28 @@ private fun TopBar(vm: LauncheritoViewModel, onLoadFiles: () -> Unit) {
             IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "Más") }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 MenuItem("Cargar archivos", Icons.Rounded.Add) { menuOpen = false; onLoadFiles() }
+                // Solo si hay una versión nueva (se mira al abrir la app)
+                vm.appUpdate?.let { update ->
+                    DropdownMenuItem(
+                        text = { Text("Actualizar a la ${update.version}", color = Accent) },
+                        leadingIcon = { Icon(Icons.Rounded.SystemUpdate, contentDescription = null, tint = Accent) },
+                        onClick = { menuOpen = false; vm.updateButton() },
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text("Buscar en YouTube") },
+                    leadingIcon = { Icon(Icons.Rounded.SmartDisplay, contentDescription = null, tint = YouTubeRed) },
+                    onClick = { menuOpen = false; vm.openYouTube() },
+                )
                 DropdownMenuItem(
                     text = { Text("Lista de Spotify") },
                     leadingIcon = { SpotifyBadge(22.dp) },
-                    onClick = { menuOpen = false; vm.openSpotifyDialog() },
+                    onClick = { menuOpen = false; vm.openListDialog(OnlineSource.Spotify) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Lista de YouTube Music") },
+                    leadingIcon = { YouTubeMusicBadge(22.dp) },
+                    onClick = { menuOpen = false; vm.openListDialog(OnlineSource.YouTubeMusic) },
                 )
                 if (vm.unloadedCount > 0) {
                     MenuItem("Tus canciones: cargar ${if (vm.unloadedCount == 1) "la que falta" else "las ${vm.unloadedCount} que faltan"}", Icons.Rounded.LibraryMusic) {
@@ -167,7 +194,8 @@ private fun SearchField(vm: LauncheritoViewModel, modifier: Modifier) {
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         // Buscar elige la primera.
         keyboardActions = KeyboardActions(onSearch = {
-            vm.searchResults().firstOrNull()?.let { vm.pickSearchResult(it.key) }
+            val first = vm.searchResults().firstOrNull()
+            if (first != null) vm.pickSearchResult(first.key) else if (vm.searchQuery.isNotBlank()) vm.openYouTube(vm.searchQuery)
             focus.clearFocus()
         }),
         modifier = modifier,
@@ -204,6 +232,8 @@ private fun SectionBar(vm: LauncheritoViewModel) {
         Tab("Canciones", vm.section == Section.Songs) { vm.showSection(Section.Songs) }
         Tab("Artistas", vm.section == Section.Artists) { vm.showSection(Section.Artists) }
         Tab("Géneros", vm.section == Section.Genres) { vm.showSection(Section.Genres) }
+        Tab("Playlists", vm.section == Section.Playlists) { vm.showSection(Section.Playlists) }
+        Tab("Del momento", vm.section == Section.Trending) { vm.showSection(Section.Trending) }
     }
 }
 
@@ -242,6 +272,14 @@ private fun ActionPill(icon: ImageVector, text: String, background: Color, onCli
  */
 @Composable
 private fun StatusLine(vm: LauncheritoViewModel) {
+    // Mientras suena solo una playlist (propia o del momento): su nombre y la vuelta a todas las canciones.
+    vm.sessionName?.let { name ->
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("♫  Escuchando «$name»", color = Accent, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f))
+            TextButton(onClick = vm::showAllSongs) { Text("Ver todas", fontSize = 12.sp) }
+        }
+    }
     // Con la letra grande no caben el aviso y los botones en una fila: el aviso va arriba, solo.
     val large = LocalLargeText.current
     if (large) StatusText(vm, Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 6.dp))
@@ -275,7 +313,10 @@ private fun StatusLine(vm: LauncheritoViewModel) {
     }
 }
 
-/** Una línea de avisos: Spotify y vídeo, la clasificación con Deezer, la edición o cuántas canciones hay. */
+/**
+ * Una línea de avisos: listas y vídeo, la clasificación con Deezer, la edición o cuántas canciones
+ * hay. Los de una lista van del color de su servicio.
+ */
 @Composable
 private fun StatusText(vm: LauncheritoViewModel, modifier: Modifier) {
     val text = when {
@@ -283,8 +324,14 @@ private fun StatusText(vm: LauncheritoViewModel, modifier: Modifier) {
         vm.catalogStatus.isNotEmpty() -> vm.catalogStatus
         else -> LauncheritoViewModel.songs(vm.tiles.size)
     }
+    val color = when {
+        vm.statusText.isEmpty() -> Muted
+        vm.statusSource == OnlineSource.Spotify -> SpotifyGreen
+        vm.statusSource == OnlineSource.YouTubeMusic -> YouTubeRed
+        else -> Muted
+    }
     Text(
-        text, color = Muted, fontSize = 12.sp, maxLines = if (vm.section == Section.Songs) 2 else 1,
+        text, color = color, fontSize = 12.sp, maxLines = if (vm.section == Section.Songs) 2 else 1,
         overflow = TextOverflow.Ellipsis, modifier = modifier,
     )
 }
@@ -352,13 +399,35 @@ fun VideoSurface(video: YouTubeVideo, visible: Boolean, modifier: Modifier) {
     )
 }
 
-/** Barra de abajo en artistas y géneros: lo que suena y los controles. */
+/**
+ * Barra de abajo: lo que suena y los controles. Siempre en artistas y géneros; en el mosaico, cuando
+ * la portada que suena se ha perdido de vista. Con [onGoToSong], el título lleva a esa portada y
+ * sale el botón «Ir a la canción».
+ */
 @Composable
-private fun BottomBar(vm: LauncheritoViewModel) {
-    Surface(color = Color(0xFF111111), shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)) {
+fun BottomBar(vm: LauncheritoViewModel, modifier: Modifier = Modifier, onGoToSong: (() -> Unit)? = null) {
+    Surface(
+        color = Color(0xFF111111),
+        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+        shadowElevation = if (onGoToSong != null) 12.dp else 0.dp,   // encima del mosaico, separada de él
+        modifier = modifier,
+    ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(vm.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(vm.artist, color = Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    Modifier.weight(1f).then(if (onGoToSong != null) Modifier.clickable(onClick = onGoToSong) else Modifier),
+                ) {
+                    Text(vm.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(vm.artist, color = Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (onGoToSong != null) {
+                    TextButton(onClick = onGoToSong) {
+                        Icon(Icons.Rounded.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Ir a la canción", maxLines = 1, softWrap = false)
+                    }
+                }
+            }
             PlayerControls(vm)
         }
     }
@@ -376,19 +445,40 @@ private fun SearchResults(vm: LauncheritoViewModel) {
         shadowElevation = 8.dp,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).heightIn(max = 420.dp),
     ) {
-        if (results.isEmpty()) {
-            Text(
-                "Ninguna canción se llama «${vm.searchQuery.trim()}»", color = Muted,
-                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(16.dp),
-            )
-        } else {
-            LazyColumn {
-                items(results, key = { it.key }) { result ->
-                    SongRow(vm, result.key, result.title, result.artist, result.highlight) {
-                        focus.clearFocus()
-                        vm.pickSearchResult(result.key)
-                    }
-                    HorizontalDivider(color = Color(0xFF222222))
+        val query = vm.searchQuery.trim()
+        LazyColumn {
+            if (results.isEmpty()) {
+                item {
+                    Text(
+                        "Ninguna canción tuya se llama «$query»", color = Muted,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+            items(results, key = { it.key }) { result ->
+                SongRow(vm, result.key, result.title, result.artist, result.highlight) {
+                    focus.clearFocus()
+                    vm.pickSearchResult(result.key)
+                }
+                HorizontalDivider(color = Color(0xFF222222))
+            }
+            // Al final, buscarlo en YouTube.
+            item(key = "youtube") {
+                Row(
+                    Modifier.fillMaxWidth().clickable { focus.clearFocus(); vm.openYouTube(query) }
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.SmartDisplay, contentDescription = null, tint = YouTubeRed, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        buildAnnotatedString {
+                            append("Buscar «")
+                            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(query) }
+                            append("» en YouTube")
+                        },
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
@@ -400,6 +490,7 @@ private fun SearchResults(vm: LauncheritoViewModel) {
  * dato a la derecha. La que suena sale resaltada. Si se indica, una parte del título va en morado (lo
  * que coincide con la búsqueda).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongRow(
     vm: LauncheritoViewModel,
@@ -410,9 +501,11 @@ fun SongRow(
     onClick: () -> Unit = { vm.selectSong(key) },
 ) {
     val playing = key == vm.currentKey
-    val youTube = SpotifyLibrary.isSpotify(key)
+    val youTube = OnlineSongs.isOnline(key)
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        // Mantenerla pulsada abre el menú de Favoritos y playlists.
+        Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = { vm.songMenuKey = key })
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(

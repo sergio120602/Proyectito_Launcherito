@@ -1,39 +1,23 @@
-using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Launcherito;
-
-/// <summary>Canción de una lista de Spotify. Dentro de Launcherito se identifica por <see cref="Key"/>.</summary>
-public sealed record SpotifyTrack(string Id, string Title, string Artists, TimeSpan Duration)
-{
-    public string Key => SpotifyLibrary.KeyPrefix + Id;
-
-    /// <summary>Primer artista ("Drake, Future" → "Drake"), el que se usa para agrupar y para Deezer.</summary>
-    public string MainArtist => Artists.Split(',')[0].Trim();
-}
-
-/// <summary>Lista o álbum de Spotify ya leído.</summary>
-public sealed record SpotifyList(string Name, string Owner, IReadOnlyList<SpotifyTrack> Tracks);
 
 /// <summary>
 /// Lee listas públicas y álbumes de Spotify sin cuenta ni clave. La API oficial exige desde febrero
 /// de 2026 que el dueño de la app tenga Premium, así que se usa la página que Spotify ofrece para
 /// insertar listas en otras webs (trae título y artistas de cada canción, hasta 100 canciones) y su
 /// servicio oEmbed para las portadas. Spotify no da el audio completo: si no se tiene el .mp3, la
-/// canción es un acceso directo a su vídeo de YouTube (<see cref="YouTubeLinks"/>).
+/// canción suena con su vídeo de YouTube (<see cref="YouTubeLinks"/>). Las canciones leídas se
+/// guardan en <see cref="OnlineSongs"/>.
 /// </summary>
 public static class SpotifyLibrary
 {
     public const string KeyPrefix = "spotify:track:";
 
     private static readonly HttpClient Http = CreateClient();
-    private static readonly ConcurrentDictionary<string, SpotifyTrack> Tracks = new();
-    private static readonly string CoverFolder = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Launcherito", "spotify");
 
     // open.spotify.com/playlist/ID, open.spotify.com/intl-es/album/ID?si=…, spotify:playlist:ID
     private static readonly Regex LinkPattern = new(
@@ -45,23 +29,18 @@ public static class SpotifyLibrary
 
     public static bool IsSpotify(string key) => key.StartsWith(KeyPrefix, StringComparison.Ordinal);
 
-    public static bool TryGet(string key, out SpotifyTrack track) => Tracks.TryGetValue(key, out track!);
-
-    /// <summary>Vuelve a dar a conocer una canción guardada («Tus canciones») sin pedirla a Spotify.</summary>
-    public static void Register(SpotifyTrack track) => Tracks[track.Key] = track;
-
     /// <summary>Saca el tipo ("playlist" o "album") y el id de un enlace de Spotify, o null si no lo es.</summary>
-    public static (string Type, string Id)? ParseLink(string? text)
+    public static ListLink? ParseLink(string? text)
     {
         var match = text is null ? null : LinkPattern.Match(text);
         return match is { Success: true }
-            ? (match.Groups["type"].Value.ToLowerInvariant(), match.Groups["id"].Value)
+            ? new ListLink(OnlineSource.Spotify, match.Groups["type"].Value.ToLowerInvariant(), match.Groups["id"].Value)
             : null;
     }
 
-    /// <summary>Descarga la lista o el álbum y registra sus canciones.</summary>
-    /// <exception cref="SpotifyImportException">No se puede leer (sin conexión, privada o inexistente).</exception>
-    public static async Task<SpotifyList> LoadAsync(string type, string id)
+    /// <summary>Descarga la lista o el álbum.</summary>
+    /// <exception cref="ListImportException">No se puede leer (sin conexión, privada o inexistente).</exception>
+    public static async Task<OnlineList> LoadAsync(string type, string id)
     {
         string html;
         try
@@ -70,12 +49,12 @@ public static class SpotifyLibrary
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            throw new SpotifyImportException("No se puede conectar con Spotify. Comprueba la conexión a Internet.");
+            throw new ListImportException("No se puede conectar con Spotify. Comprueba la conexión a Internet.");
         }
 
         var data = DataPattern.Match(html);
         if (!data.Success)
-            throw new SpotifyImportException("Spotify ha cambiado su página y no se puede leer la lista.");
+            throw new ListImportException("Spotify ha cambiado su página y no se puede leer la lista.");
 
         try
         {
@@ -86,97 +65,44 @@ public static class SpotifyLibrary
                 !state.TryGetProperty("data", out var stateData) ||
                 !stateData.TryGetProperty("entity", out var entity) ||
                 !entity.TryGetProperty("trackList", out var list) || list.ValueKind != JsonValueKind.Array)
-                throw new SpotifyImportException(type == "album"
+                throw new ListImportException(type == "album"
                     ? "No se encuentra ese álbum en Spotify."
                     : "No se encuentra la lista. Comprueba el enlace y que la lista sea pública.");
 
-            var tracks = new List<SpotifyTrack>();
+            var tracks = new List<OnlineTrack>();
             foreach (var item in list.EnumerateArray())
             {
                 string? uri = Text(item, "uri");
                 if (uri is null || !uri.StartsWith(KeyPrefix, StringComparison.Ordinal))
                     continue;   // episodios de pódcast u otros elementos que no son canciones
-                var track = new SpotifyTrack(
+                tracks.Add(new OnlineTrack(
+                    OnlineSource.Spotify,
                     uri[KeyPrefix.Length..],
                     Text(item, "title") ?? "Sin título",
                     Text(item, "subtitle") is { Length: > 0 } artists ? artists : SongInfo.UnknownArtist,
-                    TimeSpan.FromMilliseconds(item.TryGetProperty("duration", out var ms) && ms.TryGetInt64(out long d) ? d : 0));
-                Tracks[track.Key] = track;
-                tracks.Add(track);
+                    TimeSpan.FromMilliseconds(item.TryGetProperty("duration", out var ms) && ms.TryGetInt64(out long d) ? d : 0)));
             }
-            return new SpotifyList(Text(entity, "name") ?? "Lista de Spotify", Text(entity, "subtitle") ?? "", tracks);
+            return new OnlineList(OnlineSource.Spotify, Text(entity, "name") ?? "Lista de Spotify", tracks,
+                                  LargestCover(entity));
         }
         catch (JsonException)
         {
-            throw new SpotifyImportException("Spotify ha cambiado su página y no se puede leer la lista.");
+            throw new ListImportException("Spotify ha cambiado su página y no se puede leer la lista.");
         }
     }
 
     /// <summary>
-    /// Bytes de la portada (640 px) de una canción, o null si no se puede descargar. Se guarda en disco,
-    /// así solo se descarga una vez. Bloquea el hilo: llamarlo fuera del hilo de la interfaz.
+    /// Dirección de la portada (640 px) de una canción. Se pregunta a Spotify solo cuando se recorre,
+    /// es decir, si la portada no está ya guardada en disco. Bloquea el hilo.
     /// </summary>
-    public static byte[]? GetCoverData(SpotifyTrack track)
+    internal static IEnumerable<string> CoverUrls(OnlineTrack track)
     {
-        string file = Path.Combine(CoverFolder, track.Id + ".jpg");
-        try
-        {
-            if (File.Exists(file))
-                return File.ReadAllBytes(file);
-
-            // oEmbed es el servicio público de Spotify para mostrar una canción en otra web; da la
-            // portada a 300 px. Cambiando el código de tamaño de la URL se obtiene la de 640 px.
-            using var oembed = JsonDocument.Parse(GetString(
-                $"https://open.spotify.com/oembed?url={Uri.EscapeDataString("https://open.spotify.com/track/" + track.Id)}"));
-            if (Text(oembed.RootElement, "thumbnail_url") is not { } url)
-                return null;
-            url = url.Replace("ab67616d00001e02", "ab67616d0000b273");
-
-            using var response = Http.Send(new HttpRequestMessage(HttpMethod.Get, url));
-            response.EnsureSuccessStatusCode();
-            using var memory = new MemoryStream();
-            response.Content.ReadAsStream().CopyTo(memory);
-            byte[] bytes = memory.ToArray();
-
-            // Se escribe primero en un archivo temporal para no dejar una portada a medias.
-            Directory.CreateDirectory(CoverFolder);
-            string temp = file + ".tmp";
-            File.WriteAllBytes(temp, bytes);
-            File.Move(temp, file, overwrite: true);
-            return bytes;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
-                                       or IOException or UnauthorizedAccessException)
-        {
-            return null;   // sin portada esta vez; se reintentará la próxima vez que se necesite
-        }
-    }
-
-    /// <summary>
-    /// Clave para reconocer la misma canción en Spotify y en un .mp3 aunque se escriba distinto:
-    /// sin mayúsculas, tildes, signos ni añadidos como "(feat. X)" o "- Remastered".
-    /// </summary>
-    public static string MatchKey(string artist, string title)
-    {
-        string main = artist;
-        foreach (var separator in new[] { ",", "&", ";", " feat", " ft.", " x " })
-        {
-            int cut = main.IndexOf(separator, StringComparison.OrdinalIgnoreCase);
-            if (cut > 0)
-                main = main[..cut];
-        }
-        return Simplify(main) + "|" + Simplify(MusicCatalog.CleanTitle(title));
-    }
-
-    private static string Simplify(string text)
-    {
-        var builder = new StringBuilder(text.Length);
-        foreach (char c in text.Normalize(NormalizationForm.FormD))
-        {
-            if (char.IsLetterOrDigit(c))
-                builder.Append(char.ToLowerInvariant(c));
-        }
-        return builder.ToString();
+        // oEmbed es el servicio público de Spotify para mostrar una canción en otra web; da la
+        // portada a 300 px. Cambiando el código de tamaño de la URL se obtiene la de 640 px.
+        using var oembed = JsonDocument.Parse(GetString(
+            $"https://open.spotify.com/oembed?url={Uri.EscapeDataString("https://open.spotify.com/track/" + track.Id)}"));
+        if (Text(oembed.RootElement, "thumbnail_url") is { } url)
+            yield return url.Replace("ab67616d00001e02", "ab67616d0000b273");
     }
 
     private static string GetString(string url)
@@ -185,6 +111,21 @@ public static class SpotifyLibrary
         response.EnsureSuccessStatusCode();
         using var reader = new StreamReader(response.Content.ReadAsStream());
         return reader.ReadToEnd();
+    }
+
+    /// <summary>La portada más grande de la lista ("coverArt": {"sources": [{url, width}, …]}), o null.</summary>
+    private static string? LargestCover(JsonElement entity)
+    {
+        if (!entity.TryGetProperty("coverArt", out var art) || !art.TryGetProperty("sources", out var sources) ||
+            sources.ValueKind != JsonValueKind.Array)
+            return null;
+        return sources.EnumerateArray()
+            .Where(source => Text(source, "url") is not null)
+            // El ancho puede venir vacío (null): entonces cuenta como 0.
+            .OrderByDescending(source => source.TryGetProperty("width", out var w) && w.ValueKind == JsonValueKind.Number &&
+                                         w.TryGetInt32(out int width) ? width : 0)
+            .Select(source => Text(source, "url"))
+            .FirstOrDefault();
     }
 
     private static string? Text(JsonElement element, string property) =>
@@ -197,6 +138,3 @@ public static class SpotifyLibrary
         return client;
     }
 }
-
-/// <summary>No se ha podido leer una lista de Spotify; el mensaje se muestra tal cual.</summary>
-public sealed class SpotifyImportException(string message) : Exception(message);

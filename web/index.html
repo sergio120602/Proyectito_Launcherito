@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="description" content="Launcherito: tu música, a tu manera. Un launcher de música bonito, rápido y personalizable.">
+    <meta name="theme-color" content="#000000">
+    <title>Launcherito</title>
+    <link rel="icon" href="img/logo.png">
+    <link rel="apple-touch-icon" href="img/logo.png">
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<!-- ───────────── Menú principal ───────────── -->
+<section id="start" class="start">
+    <img class="start-logo" src="img/logo.png" alt="Launcherito">
+
+    <button id="start-back" class="start-button back" type="button" hidden>
+        <span data-icon="playCircle"></span><span id="start-back-text">Volver al reproductor</span>
+    </button>
+    <button id="start-load" class="start-main" type="button">Cargar archivos</button>
+    <button id="start-library" class="start-button" type="button" disabled>
+        <span data-icon="library"></span><span id="start-library-text">Tus canciones</span>
+    </button>
+    <button id="start-delete" class="start-button" type="button" disabled>
+        <span data-icon="delete"></span><span>Borrar canciones</span>
+    </button>
+    <button id="start-spotify" class="start-button" type="button">
+        <span data-icon="spotifyBadge"></span><span>Lista de Spotify</span>
+    </button>
+
+    <div class="text-size">
+        <span class="muted">Letra:</span>
+        <button type="button" data-large-text="false">Pequeña</button>
+        <button type="button" data-large-text="true">Grande</button>
+    </div>
+    <p id="start-hint" class="muted small">Las canciones que cargues se guardan solas en «Tus canciones». También puedes soltar los .mp3 sobre la página.</p>
+    <p id="start-server-note" class="muted small note" hidden>
+        Abierta sin el servidor de Launcherito: tus .mp3, el mosaico, artistas y géneros funcionan, pero las
+        listas de Spotify y los vídeos de YouTube necesitan abrirla con <code>node servidor.mjs</code> (en la carpeta <code>web</code>).
+    </p>
+</section>
+
+<!-- ───────────── Reproductor ───────────── -->
+<section id="player" class="player" hidden>
+    <header class="topbar">
+        <button id="home" class="icon-button" type="button" title="Inicio" aria-label="Inicio" data-icon="home"></button>
+        <label class="search">
+            <span data-icon="search"></span>
+            <input id="search" type="search" placeholder="Buscar" autocomplete="off" spellcheck="false" aria-label="Buscar canciones (Ctrl+F)">
+            <button id="search-clear" class="icon-button small" type="button" title="Borrar la búsqueda" aria-label="Borrar la búsqueda" data-icon="close" hidden></button>
+        </label>
+        <div class="menu-anchor">
+            <button id="menu-button" class="icon-button" type="button" title="Más" aria-label="Más" data-icon="more"></button>
+            <div id="menu" class="menu" hidden>
+                <button id="menu-load" type="button"><span data-icon="add"></span>Cargar archivos</button>
+                <button id="menu-spotify" type="button"><span data-icon="spotifyBadge"></span>Lista de Spotify</button>
+                <button id="menu-library" type="button" hidden><span data-icon="library"></span><span id="menu-library-text"></span></button>
+                <button id="menu-delete" type="button" hidden><span data-icon="delete"></span>Borrar canciones</button>
+                <hr>
+                <button id="menu-large-text" type="button"><span data-icon="textSize"></span>Letra grande<span class="menu-check" data-icon="check"></span></button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="sections">
+        <button type="button" data-section="Songs">Canciones</button>
+        <button type="button" data-section="Artists">Artistas</button>
+        <button type="button" data-section="Genres">Géneros</button>
+    </nav>
+
+    <div class="statusline">
+        <span id="status" class="muted small status"></span>
+        <button id="edit" class="pill" type="button" data-icon="edit"><span>Editar</span></button>
+        <button id="stop-edit" class="pill stop-edit" type="button" data-icon="check" hidden><span>Dejar edición</span></button>
+        <button id="toggle-view" class="pill" type="button"></button>
+    </div>
+    <p id="edit-help" class="muted small edit-help" hidden></p>
+
+    <main class="content">
+        <div id="mosaic" class="mosaic" hidden><div class="mosaic-canvas"></div></div>
+
+        <div id="single" class="single" hidden>
+            <div id="single-frame" class="single-frame">
+                <span class="placeholder" data-icon="note"></span>
+                <img id="single-cover" alt="" hidden>
+                <span id="video-status" class="video-status" hidden></span>
+            </div>
+            <h1 id="single-title" class="single-title"></h1>
+            <p id="single-artist" class="single-artist muted"></p>
+            <div id="single-controls" class="single-controls"></div>
+        </div>
+
+        <div id="categories" class="categories" hidden></div>
+        <div id="search-results" class="search-results" hidden></div>
+    </main>
+
+    <!-- En artistas y géneros los controles van abajo. -->
+    <footer id="bottombar" class="bottombar" hidden>
+        <div id="bottom-title" class="bottom-title"></div>
+        <div id="bottom-artist" class="muted small bottom-artist"></div>
+        <div id="bottom-controls"></div>
+    </footer>
+</section>
+
+<!-- El vídeo de YouTube de la canción que suena: encima de la vista original u oculto. -->
+<div id="video-layer" class="video-layer"></div>
+
+<div id="drop-hint" class="drop-hint" hidden><span data-icon="note"></span>Suelta los .mp3 para añadirlos</div>
+<input id="file-input" type="file" accept=".mp3,audio/mpeg" multiple hidden>
+
+<!-- ───────────── Cuadros de diálogo ───────────── -->
+<dialog id="spotify-dialog">
+    <form id="spotify-form">
+        <h2>Lista de Spotify</h2>
+        <p class="muted">Pega el enlace de una lista pública o de un álbum. No hace falta cuenta. Las canciones que ya
+            tienes en .mp3 suenan enteras; las demás, con su vídeo de YouTube.</p>
+        <p id="spotify-server-note" class="note small" hidden>Para añadir listas hay que abrir Launcherito con su servidor:
+            <code>node servidor.mjs</code> en la carpeta <code>web</code>. El navegador no deja que una página lea Spotify por su cuenta.</p>
+        <input id="spotify-link" type="text" placeholder="https://open.spotify.com/playlist/…" autocomplete="off" spellcheck="false">
+        <div id="spotify-progress" class="progress" hidden></div>
+        <p id="spotify-status" class="small" hidden></p>
+        <div class="dialog-buttons">
+            <button id="spotify-cancel" class="text-button" type="button">Cancelar</button>
+            <button id="spotify-add" class="button spotify" type="submit">Añadir</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="delete-dialog" class="large">
+    <h2>Borrar canciones</h2>
+    <p class="muted small">Se quitan de «Tus canciones». Los archivos .mp3 de tu ordenador no se borran.</p>
+    <button id="delete-select-all" class="text-button" type="button">Seleccionar todas</button>
+    <div id="delete-list" class="delete-list"></div>
+    <div class="dialog-buttons">
+        <button id="delete-cancel" class="text-button" type="button">Cancelar</button>
+        <button id="delete-confirm" class="button danger" type="button" disabled>Borrar</button>
+    </div>
+</dialog>
+
+<dialog id="confirm-dialog">
+    <h2>Borrar canciones</h2>
+    <p id="confirm-text" class="pre"></p>
+    <div class="dialog-buttons">
+        <button id="confirm-cancel" class="text-button" type="button">Cancelar</button>
+        <button id="confirm-ok" class="button danger" type="button">Borrar</button>
+    </div>
+</dialog>
+
+<dialog id="message-dialog">
+    <h2 id="message-title">Launcherito</h2>
+    <p id="message-text" class="pre"></p>
+    <div class="dialog-buttons">
+        <button id="message-ok" class="text-button" type="button">Aceptar</button>
+    </div>
+</dialog>
+
+<!-- El orden importa: cada archivo usa lo de los anteriores. -->
+<script src="js/Storage.js"></script>
+<script src="js/Http.js"></script>
+<script src="js/Playlist.js"></script>
+<script src="js/MusicCatalog.js"></script>
+<script src="js/SpotifyLibrary.js"></script>
+<script src="js/SongTags.js"></script>
+<script src="js/SongLibrary.js"></script>
+<script src="js/YouTube.js"></script>
+<script src="js/Launcherito.js"></script>
+<script src="js/Mosaic.js"></script>
+<script src="js/Ui.js"></script>
+</body>
+</html>

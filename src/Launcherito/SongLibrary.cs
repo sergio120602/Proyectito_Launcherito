@@ -1,31 +1,47 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Launcherito;
 
 /// <summary>
-/// Canción guardada. <see cref="Key"/> es la ruta del .mp3 o la clave de Spotify ("spotify:track:…").
-/// De las de Spotify se guardan todos sus datos, porque sin ellos no se pueden volver a mostrar.
+/// Canción guardada. <see cref="Key"/> es la ruta del .mp3 o la clave de Spotify ("spotify:track:…")
+/// o de YouTube Music ("ytmusic:…"). De estas se guardan todos sus datos, porque sin ellos no se
+/// pueden volver a mostrar.
 /// </summary>
 public sealed class SavedSong
 {
     public required string Key { get; init; }
     public string Title { get; set; } = "";
     public string Artist { get; set; } = "";
-    public long DurationMs { get; init; }   // solo Spotify
+    public long DurationMs { get; init; }   // solo Spotify y YouTube Music
 
-    public bool IsSpotify => SpotifyLibrary.IsSpotify(Key);
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CoverUrl { get; init; }  // solo YouTube Music
 
-    public static SavedSong FromTrack(SpotifyTrack track) => new()
+    /// <summary>De dónde viene, o null si es un .mp3.</summary>
+    [JsonIgnore]
+    public OnlineSource? Source => OnlineSongs.SourceOf(Key);
+
+    [JsonIgnore]
+    public bool IsOnline => Source is not null;
+
+    public static SavedSong FromTrack(OnlineTrack track) => new()
     {
         Key = track.Key,
         Title = track.Title,
         Artist = track.Artists,
         DurationMs = (long)track.Duration.TotalMilliseconds,
+        CoverUrl = track.CoverUrl,
     };
 
-    public SpotifyTrack ToTrack() =>
-        new(Key[SpotifyLibrary.KeyPrefix.Length..], Title, Artist, TimeSpan.FromMilliseconds(DurationMs));
+    /// <summary>La canción de Spotify o YouTube Music guardada. Solo si <see cref="IsOnline"/>.</summary>
+    public OnlineTrack ToTrack()
+    {
+        var source = Source ?? throw new InvalidOperationException("Es un .mp3, no una canción de una lista.");
+        return new OnlineTrack(source, Key[OnlineSongs.KeyPrefix(source).Length..], Title, Artist,
+                               TimeSpan.FromMilliseconds(DurationMs), CoverUrl);
+    }
 }
 
 /// <summary>
@@ -54,6 +70,8 @@ public sealed class SongLibrary
         _songs.Values.OrderBy(song => song.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
 
     public bool Contains(string key) => _songs.ContainsKey(key);
+
+    public bool TryGet(string key, out SavedSong song) => _songs.TryGetValue(key, out song!);
 
     /// <summary>Guarda las canciones nuevas (las que ya estaban se dejan como están).</summary>
     public void Add(IEnumerable<SavedSong> songs)

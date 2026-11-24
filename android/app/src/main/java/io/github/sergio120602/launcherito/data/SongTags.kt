@@ -6,12 +6,12 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import java.util.concurrent.ConcurrentHashMap
 
-/** Título y artista de una canción, leídos de sus etiquetas ID3 o de Spotify. */
+/** Título y artista de una canción, leídos de sus etiquetas ID3 o de Spotify / YouTube Music. */
 data class SongInfo(val title: String, val artist: String)
 
 /**
  * Lee las etiquetas de los .mp3. En Android cada canción se identifica por la dirección content://
- * que da el selector de archivos (o por "spotify:track:…"), no por una ruta del disco.
+ * que da el selector de archivos (o por "spotify:track:…" / "ytmusic:…"), no por una ruta del disco.
  */
 object SongTags {
     /** Artista que se muestra cuando la canción no lo trae en sus etiquetas. */
@@ -33,9 +33,9 @@ object SongTags {
         null
     }
 
-    /** Título que se puede mostrar antes de leer las etiquetas: el de Spotify o el nombre del archivo. */
+    /** Título que se puede mostrar antes de leer las etiquetas: el de la lista o el nombre del archivo. */
     fun fallbackTitle(key: String): String {
-        SpotifyLibrary.tryGet(key)?.let { return it.title }
+        OnlineSongs.tryGet(key)?.let { return it.title }
         names[key]?.let { return it }
         val segment = Uri.decode(Uri.parse(key).lastPathSegment ?: key)
         return segment.substringAfterLast('/').substringAfterLast(':').substringBeforeLast('.')
@@ -43,9 +43,10 @@ object SongTags {
 
     /** Lee título y artista. Bloquea: llamarlo fuera del hilo principal. */
     fun read(context: Context, key: String): SongInfo {
-        SpotifyLibrary.tryGet(key)?.let { track ->
+        OnlineSongs.tryGet(key)?.let { track ->
             // El artista lleva la marca de YouTube porque suena con su vídeo (no hay .mp3).
-            return SongInfo(track.title, "${track.artists}  ·  vídeo de YouTube")
+            val mark = if (track.source == OnlineSource.YouTubeMusic) "YouTube Music" else "vídeo de YouTube"
+            return SongInfo(track.title, "${track.artists}  ·  $mark")
         }
         var title = fallbackTitle(key)
         var artist = UNKNOWN_ARTIST
@@ -56,10 +57,10 @@ object SongTags {
         return SongInfo(title, artist)
     }
 
-    /** Bytes de la carátula (la incrustada en el .mp3 o la de Spotify), o null si no tiene. Bloquea. */
+    /** Bytes de la carátula (la incrustada en el .mp3 o la de Spotify / YouTube Music), o null si no tiene. Bloquea. */
     fun coverData(context: Context, key: String): ByteArray? {
-        val track = SpotifyLibrary.tryGet(key)
-        return if (track != null) SpotifyLibrary.coverData(context, track)
+        val track = OnlineSongs.tryGet(key)
+        return if (track != null) OnlineSongs.coverData(context, track)
         else withRetriever(context, key) { it.embeddedPicture }
     }
 

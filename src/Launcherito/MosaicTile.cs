@@ -27,11 +27,13 @@ public sealed class MosaicTile : Border
     private static readonly Brush PlaceholderBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x3A, 0x3A, 0x3A)));
     private static readonly Brush YouTubeRed = Frozen(new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0x33)));
     // Marca de procedencia, arriba a la izquierda: morada con una nota si es tu .mp3, verde con las
-    // tres ondas del logo si viene de Spotify.
+    // tres ondas del logo si viene de Spotify, roja con un aro y el triángulo si es de YouTube Music.
     private static readonly Brush OwnPurple = Frozen(new SolidColorBrush(Color.FromRgb(0x8B, 0x5C, 0xF6)));
     private static readonly Brush SpotifyGreen = Frozen(new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)));
     private static readonly Geometry SpotifyWaves = FrozenGeometry(
         "M 6.5,9.6 Q 12,7.6 17.5,10.6 M 7.3,12.7 Q 12,11.1 16.6,13.5 M 8.1,15.6 Q 12,14.4 15.6,16.3");
+    private static readonly Geometry YouTubeMusicRing = FrozenGeometry("M 12,6.5 A 5.5,5.5 0 1 1 11.99,6.5 Z");
+    private static readonly Geometry YouTubeMusicPlay = FrozenGeometry("M 10.3,9.4 L 14.8,12 L 10.3,14.6 Z");
     private static readonly Brush GripBackground = Frozen(new SolidColorBrush(Color.FromArgb(0xB0, 0, 0, 0)));
     private static readonly Geometry GripLines = FrozenGeometry("M 17,7 L 7,17 M 17,12 L 12,17");
     private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
@@ -75,10 +77,17 @@ public sealed class MosaicTile : Border
             VerticalAlignment = VerticalAlignment.Center,
         };
         _root.Children.Add(_placeholder);
-        bool spotify = SpotifyLibrary.IsSpotify(path);
-        _sourceBadge = spotify ? SpotifyBadge() : OwnBadge();
+        var source = OnlineSongs.SourceOf(path);
+        _sourceBadge = source switch
+        {
+            OnlineSource.Spotify => SpotifyBadge(),
+            OnlineSource.YouTubeMusic => YouTubeMusicBadge(),
+            _ => OwnBadge(),
+        };
         _root.Children.Add(_sourceBadge);
-        if (spotify)
+        // Las de Spotify suenan con un vídeo de YouTube: se avisa con la marca roja de la derecha.
+        // Las de YouTube Music ya lo dicen con su propia marca.
+        if (source == OnlineSource.Spotify)
         {
             _youTubeBadge = YouTubeBadge();
             _root.Children.Add(_youTubeBadge);
@@ -120,6 +129,20 @@ public sealed class MosaicTile : Border
         StrokeStartLineCap = PenLineCap.Round,
         StrokeEndLineCap = PenLineCap.Round,
     });
+
+    /// <summary>De YouTube Music: el círculo rojo con un aro blanco y el triángulo de reproducir.</summary>
+    private static Border YouTubeMusicBadge()
+    {
+        var symbol = new Grid();
+        symbol.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = YouTubeMusicRing,
+            Stroke = Brushes.White,
+            StrokeThickness = 1.4,
+        });
+        symbol.Children.Add(new System.Windows.Shapes.Path { Data = YouTubeMusicPlay, Fill = Brushes.White });
+        return SourceBadge(YouTubeRed, symbol);
+    }
 
     /// <summary>Marca roja con el triángulo de reproducir: al pulsar la portada se ve su vídeo de YouTube.</summary>
     private static Border YouTubeBadge() => new()

@@ -12,7 +12,7 @@ import coil3.request.Options
 import okio.Buffer
 
 /**
- * Carátula de una canción para Coil: se lee del .mp3 (o de la caché de Spotify) cuando se va a
+ * Carátula de una canción para Coil: se lee del .mp3 (o de la caché de Spotify / YouTube Music) cuando se va a
  * dibujar, y Coil la decodifica al tamaño con que se ve. Así una biblioteca grande no llena la memoria.
  */
 data class SongCover(val key: String)
